@@ -1,8 +1,0 @@
-
-
-/**
- * @author nikitadagar
- */
-object Main {
-  
-}
