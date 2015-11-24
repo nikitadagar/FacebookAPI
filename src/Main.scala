@@ -1,0 +1,8 @@
+
+
+/**
+ * @author nikitadagar
+ */
+object Main {
+  
+}
