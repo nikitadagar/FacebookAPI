@@ -15,7 +15,6 @@ object FacebookAPI {
   case object PostDeleted
   
   /* json (un)marshalling */
-  
   object Page extends DefaultJsonProtocol {
     implicit val format = jsonFormat3(Page.apply)
   }
@@ -23,10 +22,4 @@ object FacebookAPI {
   object Post extends DefaultJsonProtocol {
     implicit val format = jsonFormat3(Post.apply)
   }
-  
-  /* implicit conversions */
-
-  // implicit def toQuestion(quiz: Quiz): Question = Question(id = quiz.id, question = quiz.question)
-
-  // implicit def toAnswer(quiz: Quiz): Answer = Answer(answer = quiz.correctAnswer)
 }
