@@ -118,7 +118,10 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
       } ~
       path(Segment) { id =>
         delete { requestContext =>
-
+          println("delete user " + id)
+          RestApi.userList = RestApi.userList.filterNot(_.id == id)
+          val responder = createResponder(requestContext)
+          responder ! PageDeleted
         } ~
         get { requestContext =>
 

@@ -39,4 +39,21 @@ class UserNode(userId:String, firstName:String, lastName:String, userGender:Stri
     val last_name = lastName
     val gender = userGender
     var postList = Vector[PostNode]()
+
+    def postsToMap(): Map[String, String] = {
+        var result;
+        postList.foreach {
+            result += _.toMap()
+        }
+        result
+    }
+
+    def toMap(): Map[String, String] = {
+        var result:Map[String, String] = Map[String, String]()
+        result += ("id" -> id)
+        result += ("first_name" -> first_name)
+        result += ("last_name" -> last_name)
+        result += ("gender" -> gender)
+        result += postList.postsToMap()
+    }
 }
