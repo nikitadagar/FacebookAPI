@@ -1,6 +1,7 @@
 package ufl
 
 import scala.collection.immutable.Map
+import Array._
 
 class PostNode(postId:String, postUser:UserNode, postContent:String)  {
     val id = postId
@@ -40,12 +41,13 @@ class UserNode(userId:String, firstName:String, lastName:String, userGender:Stri
     val gender = userGender
     var postList = Vector[PostNode]()
 
-    def postsToMap(): Map[String, String] = {
-        var result;
+    def postsToListString(): String = {
+        var result: Array[String] = Array[String]()
         postList.foreach {
-            result += _.toMap()
+            result:+ _.id
         }
-        result
+        val resultString = "[" + result.mkString(", ") + "]"
+        resultString
     }
 
     def toMap(): Map[String, String] = {
@@ -54,6 +56,7 @@ class UserNode(userId:String, firstName:String, lastName:String, userGender:Stri
         result += ("first_name" -> first_name)
         result += ("last_name" -> last_name)
         result += ("gender" -> gender)
-        result += postList.postsToMap()
+        result += ("posts" -> postsToListString())
+        result
     }
 }
