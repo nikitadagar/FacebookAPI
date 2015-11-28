@@ -54,9 +54,14 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
       path(Segment) { id =>
         delete { requestContext =>
           println("delete page " + id)
-          RestApi.pageList = RestApi.pageList.filterNot(_.id == id)
           val responder = createResponder(requestContext)
-          responder ! PageDeleted
+          var resultPage: Option[PageNode] = RestApi.pageList.find(_.id == id)
+          if(resultPage.isEmpty) {
+            responder ! PageNotFound
+          } else {
+            RestApi.pageList = RestApi.pageList.filterNot(_.id == id)
+            responder ! PageDeleted
+          }
         } ~
         get { requestContext =>
           println("get page " + id)
@@ -92,9 +97,14 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
       path(Segment) { id =>
         delete { requestContext =>
           println("delete user " + id)
-          RestApi.userList = RestApi.userList.filterNot(_.id == id)
           val responder = createResponder(requestContext)
-          responder ! PostDeleted
+          var resultPost: Option[PostNode] = RestApi.postList.find(_.id == id)
+          if(resultPost.isEmpty) {
+            responder ! PostNotFound
+          } else {
+            RestApi.pageList = RestApi.postList.filterNot(_.id == id)
+            responder ! PostDeleted
+          }
         } ~
         get { requestContext =>
           println("get post " + id)
@@ -122,9 +132,14 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
       path(Segment) { id =>
         delete { requestContext =>
           println("delete user " + id)
-          RestApi.userList = RestApi.userList.filterNot(_.id == id)
           val responder = createResponder(requestContext)
-          responder ! UserDeleted
+          var resultUser: Option[UserNode] = RestApi.userList.find(_.id == id)
+          if(resultUser.isEmpty) {
+            responder ! UserNotFound
+          } else {
+            RestApi.userList = RestApi.userList.filterNot(_.id == id)
+            responder ! UserDeleted
+          }
         } ~
         get { requestContext =>
 
