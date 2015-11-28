@@ -18,19 +18,23 @@ class RestInterface extends HttpServiceActor
 }
 
 object RestApi {
-  var pageId = 0;
-  var postId = 0;
+  var id = 0;
   private def getPageId = {
-    pageId = pageId + 1
-    pageId.toString
+    id = id + 1
+    id.toString
   }
   private def getPostId = {
-    postId = postId + 1
-    postId.toString
+    id = id + 1
+    id.toString
+  }
+  private def getPostId = {
+    id = id + 1
+    id.toString
   }
 
   var pageList = Vector[PageNode]()
   var postList = Vector[PostNode]()
+  var userList = Vector[UserNode]()
 }
 
 
@@ -66,7 +70,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
           println("get page " + id)
           var resultPage : Option[PageNode] = RestApi.pageList.find(_.id == id)
           val responder = createResponder(requestContext)
-          resultPage.map(responder ! pageNodeToJson(_))
+          resultPage.map(responder ! _.toMap())
             .getOrElse(responder ! PageNotFound)
         }
       }
@@ -98,14 +102,6 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
 
   private def createResponder(requestContext:RequestContext) = {
     context.actorOf(Props(new Responder(requestContext)))
-  }
-
-  private def pageNodeToJson(pageNode:PageNode): Map[String, String] = {
-    var result:Map[String, String] = Map[String, String]()
-    result += ("id" -> pageNode.id)
-    result += ("name" -> pageNode.name)
-    result += ("about" -> pageNode.about)
-    result
   }
 }
 
