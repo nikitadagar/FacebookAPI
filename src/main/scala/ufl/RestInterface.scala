@@ -92,6 +92,35 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
       } ~
       path(Segment) { id =>
         delete { requestContext =>
+          println("delete user " + id)
+          RestApi.userList = RestApi.userList.filterNot(_.id == id)
+          val responder = createResponder(requestContext)
+          responder ! PageDeleted
+
+        } ~
+        get { requestContext =>
+
+        }
+      }
+    }
+
+    pathPrefix("user") {
+      pathEnd {
+        post {
+          entity(as[User]) { user => requestContext =>
+            var newUserId = RestApi.getId
+            //TODO: get user object from post.userId
+            val userNode: UserNode = new UserNode(newUserId, user.firstname, user.lastname, user.gender)
+            RestApi.userList = RestApi.userList :+ userNode
+
+            println("Created new user with id: " + userNode.id)
+            val responder = createResponder(requestContext)
+            responder ! UserCreated
+          }
+        }
+      } ~
+      path(Segment) { id =>
+        delete { requestContext =>
 
         } ~
         get { requestContext =>
