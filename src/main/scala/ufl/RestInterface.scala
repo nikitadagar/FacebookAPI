@@ -83,7 +83,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
               val postNode: PostNode = new PostNode(newPostId, resultUser.get, post.content)
               RestApi.postList = RestApi.postList :+ postNode
 
-              println("Created new post by: " + postNode.id + ", id: " + postNode.id)
+              println("Created new post by: " + resultUser.get.id + ", id: " + postNode.id)
               responder ! PostCreated
             }
           }
@@ -94,10 +94,14 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
           println("delete user " + id)
           RestApi.userList = RestApi.userList.filterNot(_.id == id)
           val responder = createResponder(requestContext)
-          responder ! PageDeleted
+          responder ! PostDeleted
         } ~
         get { requestContext =>
-
+          println("get post " + id)
+          var resultPost: Option[PostNode] = RestApi.postList.find(_.id == id)
+          val responder = createResponder(requestContext)
+          resultPost.map(responder ! _.toMap())
+            .getOrElse(responder ! PostNotFound)
         }
       }
     } ~
@@ -136,20 +140,26 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
   
   def receive = {
 
-    case PageCreated | PostCreated =>
+    case PageCreated | PostCreated | UserCreated =>
       requestContext.complete(StatusCodes.Created)
       killYourself
 
-    case PageDeleted =>
+    case PageDeleted | PostDeleted =>
       requestContext.complete(StatusCodes.OK)
       killYourself
 
     case PageAlreadyExists =>
-      requestContext.complete(StatusCodes.Conflict)
+      requestContext.complete(StatusCodes.Conflict, "The page already exists")
       killYourself
 
-    case PageNotFound | PostNotFound | UserNotFound=>
-      requestContext.complete(StatusCodes.NotFound)
+    case PageNotFound =>
+      requestContext.complete(StatusCodes.NotFound, "Page not found")
+
+    case PostNotFound =>
+      requestContext.complete(StatusCodes.NotFound, "Post not found")
+
+    case UserNotFound =>
+      requestContext.complete(StatusCodes.NotFound, "User not found")
 
     case jsonMap: Map[String, String] =>
       requestContext.complete(StatusCodes.OK, jsonMap)
