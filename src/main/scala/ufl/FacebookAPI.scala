@@ -15,9 +15,10 @@ object FacebookAPI {
   case object PostDeleted
   case object PostNotFound
 
-  case class User()
+  case class User(firstname:String, lastname:String, gender:String)
   case object UserCreated
   case object UserAlreadyExists
+  case object UserDeleted
   case object UserNotFound
   
   /* json (un)marshalling */
