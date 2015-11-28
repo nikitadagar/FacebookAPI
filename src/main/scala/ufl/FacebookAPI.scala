@@ -18,6 +18,7 @@ object FacebookAPI {
   case class User()
   case object UserCreated
   case object UserAlreadyExists
+  case object UserNotFound
   
   /* json (un)marshalling */
   object Page extends DefaultJsonProtocol {

@@ -7,6 +7,7 @@ class PostNode(postId:String, postUser:UserNode, postContent:String)  {
     val user = postUser
     val content = postContent
 
+    //Put all post data in a map, used for conversion to JSON.
     public def toMap(): Map[String, String] = {
         var result:Map[String, String] = Map[String, String]()
         result += ("id" -> id)
@@ -14,6 +15,7 @@ class PostNode(postId:String, postUser:UserNode, postContent:String)  {
         result += ("userFirstName" -> user.first_name)
         result += ("userLastName" -> user.last_name)
         result += ("content" -> content)
+        result
     }
 }
 

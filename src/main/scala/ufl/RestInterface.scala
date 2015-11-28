@@ -19,15 +19,7 @@ class RestInterface extends HttpServiceActor
 
 object RestApi {
   var id = 0;
-  private def getPageId = {
-    id = id + 1
-    id.toString
-  }
-  private def getPostId = {
-    id = id + 1
-    id.toString
-  }
-  private def getPostId = {
+  private def getId = {
     id = id + 1
     id.toString
   }
@@ -68,7 +60,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
         } ~
         get { requestContext =>
           println("get page " + id)
-          var resultPage : Option[PageNode] = RestApi.pageList.find(_.id == id)
+          var resultPage: Option[PageNode] = RestApi.pageList.find(_.id == id)
           val responder = createResponder(requestContext)
           resultPage.map(responder ! _.toMap())
             .getOrElse(responder ! PageNotFound)
@@ -80,13 +72,18 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
         post {
           entity(as[Post]) { post => requestContext =>
             var newPostId = RestApi.getPostId
-            //TODO: get user object from post.userId
-            val postNode: PostNode = new PostNode(newPostId, post.userId, post.content)
-            RestApi.postList = RestApi.postList :+ postNode
-
-            println("Created new post by: " + postNode.id + ", id: " + postNode.id)
             val responder = createResponder(requestContext)
-            responder ! PostCreated
+
+            val resultUser: Option[UserNode] = RestApi.userList.find(_.id == post.userId)
+            if(resultUser.isEmpty()) {
+              responder ! UserNotFound
+            } else {
+              val postNode: PostNode = new PostNode(newPostId, resultUser.get, post.content)
+              RestApi.postList = RestApi.postList :+ postNode
+
+              println("Created new post by: " + postNode.id + ", id: " + postNode.id)
+              responder ! PostCreated
+            }
           }
         }
       } ~
