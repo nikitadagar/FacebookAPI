@@ -76,8 +76,10 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
 
             val resultUser: Option[UserNode] = RestApi.userList.find(_.id == post.userId)
             if(resultUser.isEmpty()) {
+              //invalid user id
               responder ! UserNotFound
             } else {
+              //Valid user, create a new post.
               val postNode: PostNode = new PostNode(newPostId, resultUser.get, post.content)
               RestApi.postList = RestApi.postList :+ postNode
 
@@ -119,7 +121,7 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
       requestContext.complete(StatusCodes.Conflict)
       killYourself
 
-    case PageNotFound =>
+    case PageNotFound | PostNotFound | UserNotFound=>
       requestContext.complete(StatusCodes.NotFound)
 
     case jsonMap: Map[String, String] =>
