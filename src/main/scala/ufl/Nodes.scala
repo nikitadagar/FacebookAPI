@@ -8,7 +8,7 @@ class PostNode(postId:String, postUser:UserNode, postContent:String)  {
     val content = postContent
 
     //Put all post data in a map, used for conversion to JSON.
-    public def toMap(): Map[String, String] = {
+    def toMap(): Map[String, String] = {
         var result:Map[String, String] = Map[String, String]()
         result += ("id" -> id)
         result += ("userId" -> user.id)
@@ -24,7 +24,7 @@ class PageNode(pageId:String, pageName:String, pageAbout:String)  {
     val name = pageName
     val about = pageAbout
 
-    public def toMap(): Map[String, String] = {
+    def toMap(): Map[String, String] = {
         var result:Map[String, String] = Map[String, String]()
         result += ("id" -> id)
         result += ("name" -> name)
@@ -38,5 +38,5 @@ class UserNode(userId:String, firstName:String, lastName:String, userGender:Stri
     val first_name = firstName
     val last_name = lastName
     val gender = userGender
-    var postList = Vector[PostNode]
+    var postList = Vector[PostNode]()
 }

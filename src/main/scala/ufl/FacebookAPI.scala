@@ -29,4 +29,8 @@ object FacebookAPI {
   object Post extends DefaultJsonProtocol {
     implicit val format = jsonFormat2(Post.apply)
   }
+
+  object User extends DefaultJsonProtocol {
+    implicit val format = jsonFormat3(User.apply)
+  }
 }

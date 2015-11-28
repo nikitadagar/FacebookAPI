@@ -41,7 +41,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
       pathEnd {
         post {
           entity(as[Page]) { page => requestContext =>
-            var newPageId = RestApi.getPageId
+            var newPageId = RestApi.getId
             val pageNode: PageNode = new PageNode(newPageId, page.name, page.about)
             RestApi.pageList = RestApi.pageList :+ pageNode
 
@@ -71,11 +71,11 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
       pathEnd {
         post {
           entity(as[Post]) { post => requestContext =>
-            var newPostId = RestApi.getPostId
+            var newPostId = RestApi.getId
             val responder = createResponder(requestContext)
 
             val resultUser: Option[UserNode] = RestApi.userList.find(_.id == post.userId)
-            if(resultUser.isEmpty()) {
+            if(resultUser.isEmpty) {
               //invalid user id
               responder ! UserNotFound
             } else {
@@ -95,14 +95,12 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
           RestApi.userList = RestApi.userList.filterNot(_.id == id)
           val responder = createResponder(requestContext)
           responder ! PageDeleted
-
         } ~
         get { requestContext =>
 
         }
       }
-    }
-
+    } ~
     pathPrefix("user") {
       pathEnd {
         post {
