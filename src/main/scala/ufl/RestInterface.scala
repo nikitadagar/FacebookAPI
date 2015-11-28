@@ -142,7 +142,11 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
           }
         } ~
         get { requestContext =>
-
+          println("get user " + id)
+          var resultUser: Option[UserNode] = RestApi.userList.find(_.id == id)
+          val responder = createResponder(requestContext)
+          resultUser.map(responder ! _.toMap())
+            .getOrElse(responder ! UserNotFound)
         }
       }
     }
