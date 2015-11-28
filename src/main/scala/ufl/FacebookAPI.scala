@@ -19,6 +19,7 @@ object FacebookAPI {
   case object UserCreated
   case object UserAlreadyExists
   case object UserDeleted
+  case object UserNotFound
   
   /* json (un)marshalling */
   object Page extends DefaultJsonProtocol {
