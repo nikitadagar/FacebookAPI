@@ -114,7 +114,7 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
   
   def receive = {
 
-    case PageCreated, PostCreated =>
+    case PageCreated | PostCreated =>
       requestContext.complete(StatusCodes.Created)
       killYourself
 
