@@ -110,10 +110,9 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
         post {
           entity(as[User]) { user => requestContext =>
             var newUserId = RestApi.getId
-            //TODO: get user object from post.userId
             val userNode: UserNode = new UserNode(newUserId, user.firstname, user.lastname, user.gender)
             RestApi.userList = RestApi.userList :+ userNode
-
+            // TODO: send user already exists error code
             println("Created new user with id: " + userNode.id)
             val responder = createResponder(requestContext)
             responder ! UserCreated
@@ -125,7 +124,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
           println("delete user " + id)
           RestApi.userList = RestApi.userList.filterNot(_.id == id)
           val responder = createResponder(requestContext)
-          responder ! PageDeleted
+          responder ! UserDeleted
         } ~
         get { requestContext =>
 
@@ -147,7 +146,7 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
       requestContext.complete(StatusCodes.Created)
       killYourself
 
-    case PageDeleted | PostDeleted =>
+    case PageDeleted | PostDeleted | UserDeleted =>
       requestContext.complete(StatusCodes.OK)
       killYourself
 
@@ -157,12 +156,15 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
 
     case PageNotFound =>
       requestContext.complete(StatusCodes.NotFound, "Page not found")
+      killYourself
 
     case PostNotFound =>
       requestContext.complete(StatusCodes.NotFound, "Post not found")
+      killYourself
 
     case UserNotFound =>
       requestContext.complete(StatusCodes.NotFound, "User not found")
+      killYourself
 
     case jsonMap: Map[String, String] =>
       requestContext.complete(StatusCodes.OK, jsonMap)
