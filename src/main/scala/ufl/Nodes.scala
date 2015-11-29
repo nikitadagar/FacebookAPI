@@ -70,4 +70,15 @@ class AlbumNode(albumId: String, albumName: String, albumCaption: String, albumC
     }
 }
 
+class FriendsListNode(listId:String, ownerId:String, friend:String) {
+    val id = listId
+    val owner = ownerId
+    friends = Array[String] //stores IDs of friends
+
+    def friendsListResponse(): FriendsListResponse = {
+        val friendslistResponse = new FriendsListResponse(id, owner, friends)
+        friendslistResponse
+    }    
+}
+
 
