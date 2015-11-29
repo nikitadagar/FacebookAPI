@@ -225,13 +225,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
         delete { requestContext =>
           println("delete album " + id)
           val responder = createResponder(requestContext)
-          var resultAlbum: Option[AlbumNode] = RestApi.albumList.find(_.id == id)
-          if(resultAlbum.isEmpty) {
-            responder ! NodeNotFound("Album")
-          } else {
-            RestApi.albumList = RestApi.albumList.filterNot(_.id == id)
             responder ! AlbumDeleted
-          }
         } ~
         get { requestContext =>
           println("get album " + id)
@@ -321,12 +315,30 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
     }
   }
 
-  private def deletePhoto(id:String) {
-
+  private def deletePhoto(id:String) : Boolean = {
+    var photo: Option[PhotoNode] = RestApi.photoList.find(_.id == id)
+    if(photo.isEmpty) {
+      return false
+      } else {
+      val album = RestApi.albumList.find(_.id == photo.get.album) //get album of the photo
+      album.get.photos = album.get.photos.filterNot(_ == id)  //delete photo form albums's photo list
+      RestApi.photoList = RestApi.photoList.filterNot(_.id == id) //delete photo from photoList
+      return true
+    }
   }
 
-  private def deleteAlbum(id:String) {
-
+  private def deleteAlbum(id:String) : Boolean = {
+    var resultAlbum: Option[AlbumNode] = RestApi.albumList.find(_.id == id)
+      if(resultAlbum.isEmpty) {
+          return false
+      } else {
+        resultAlbum.get.photos.foreach { deletePhoto(_) } //delete all photos from album
+        val user = RestApi.userList.find(_.id == resultAlbum.get.creatorId) //get creator of album
+        var userAlbumsList = user.get.albumList   //get user's list of albums
+        userAlbumsList = userAlbumsList.filterNot(_ == id) //delete album from users album list
+        RestApi.albumList = RestApi.albumList.filterNot(_.id == id) //delete album from albumList
+        return true
+      }
   }
 
   private def deleteFromFriendList(friendListOfId:String, deleteUserId:String) {
