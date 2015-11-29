@@ -157,33 +157,47 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
         post {
           entity(as[Photo]) { photo => requestContext =>
             var newPhotoId = RestApi.getId
-            val photoNode: PhotoNode = new PhotoNode(newPhotoId, photo.caption, photo. album, photo.from)
-            RestApi.photoList = RestApi.photoList :+ photoNode
-            // TODO: send photo already exists error code
-            println("Created new photo with id: " + photoNode.id)
             val responder = createResponder(requestContext)
-            responder ! NodeCreated(newPhotoId)
+            val photoNode: PhotoNode = new PhotoNode(newPhotoId, photo.caption, photo.album, photo.from, photo.photo)
+
+            //find if user exists
+            var user: Option[UserNode] = RestApi.userList.find(_.id == id)
+            if (user.isEmpty) {
+              responder ! NodeNotFound("User")
+            } else {
+              //find if that user has the album id
+              var photoAlbum: Option[AlbumNode] = user.albumList.find(_ == id)
+              if (photoAlbum.isEmpty) {
+                responder ! NodeNotFound("Album")
+              }
+              else {
+                RestApi.photoList = RestApi.photoList :+ photoNode
+                photoAlbum.get = photoAlbum.get :+ photoNode.id
+                println("Created new photo with id: " + photoNode.id + " for Album id " + photoAlbum.get.id)
+                responder ! NodeCreated(newPhotoId)
+              }
+            }
           }
         }
       } ~
       path(Segment) { id =>
         delete { requestContext =>
-          // println("delete user " + id)
-          // val responder = createResponder(requestContext)
-          // var resultUser: Option[UserNode] = RestApi.userList.find(_.id == id)
-          // if(resultUser.isEmpty) {
-          //   responder ! UserNotFound
-          // } else {
-          //   RestApi.userList = RestApi.userList.filterNot(_.id == id)
-          //   responder ! UserDeleted
-          // }
+          println("delete photo " + id)
+          val responder = createResponder(requestContext)
+          var resultPhoto: Option[PhotoNode] = RestApi.photoList.find(_.id == id)
+          if(resultPhoto.isEmpty) {
+            responder ! NodeNotFound("Photo")
+          } else {
+            RestApi.photoList = RestApi.photoList.filterNot(_.id == id)
+            responder ! PhotoDeleted
+          }
         } ~
         get { requestContext =>
-          // println("get user " + id)
-          // var resultUser: Option[UserNode] = RestApi.userList.find(_.id == id)
-          // val responder = createResponder(requestContext)
-          // resultUser.map(responder ! _.toMap())
-          //   .getOrElse(responder ! UserNotFound)
+          println("get photo " + id)
+          var resultPhoto: Option[PhotoNode] = RestApi.photoList.find(_.id == id)
+          val responder = createResponder(requestContext)
+          resultPhoto.map(responder ! _.photoResponse())
+            .getOrElse(responder ! NodeNotFound("Photo"))
         }
       }
     }
@@ -202,7 +216,7 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
       requestContext.complete(StatusCodes.Created, "Node created with id:" + id)
       killYourself
 
-    case PageDeleted | PostDeleted | UserDeleted =>
+    case PageDeleted | PostDeleted | UserDeleted | PhotoDeleted =>
       requestContext.complete(StatusCodes.OK)
       killYourself
 

@@ -21,10 +21,9 @@ object FacebookAPI {
   case object UserDeleted
   case class UserResponse(id:String, first_name:String, last_name:String, gender:String, posts:Vector[String])
 
-  case class Photo(caption:String, album:String, from:String, photo:Array[Byte])
-  case object PhotoAlreadyExists
+  case class Photo(caption:String, albumId:String, creatorId:String, photo:Array[Byte])
   case object PhotoDeleted
-  case class PhotoResponse()
+  case class PhotoResponse(id:String, caption:String, album:String, from:String, photo:Array[Byte])
   
   /* json (un)marshalling */
   object Page extends DefaultJsonProtocol {
@@ -40,7 +39,7 @@ object FacebookAPI {
   }
 
   object Photo extends DefaultJsonProtocol {
-    implicit val format = jsonFormat3(Photo.apply)
+    implicit val format = jsonFormat4(Photo.apply)
   }
 
   object PageResponse extends DefaultJsonProtocol {
@@ -52,6 +51,10 @@ object FacebookAPI {
   }
 
   object UserResponse extends DefaultJsonProtocol {
+    implicit val format = jsonFormat5(UserResponse.apply)
+  }
+  
+  object PhotoResponse extends DefaultJsonProtocol {
     implicit val format = jsonFormat5(UserResponse.apply)
   }
 }

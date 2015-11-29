@@ -46,6 +46,11 @@ class PhotoNode(photoId:String, photoCaption:String, photoAlbum:String, creator:
     var album = photoAlbum
     var from = creator
     var photo = photoArray
+
+    def photoResponse(): PhotoResponse = {
+        val photoResponse = new PhotoResponse(id, caption, album , from, photo)
+        photoResponse
+    }
 }
 
 
