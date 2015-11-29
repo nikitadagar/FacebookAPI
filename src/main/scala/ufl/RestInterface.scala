@@ -12,6 +12,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import ufl.FacebookAPI._
 import scala.collection.immutable.Map
+import java.util.Calendar
 
 class RestInterface extends HttpServiceActor
   with RestApi {
@@ -29,6 +30,7 @@ object RestApi {
   var postList = Vector[PostNode]()
   var userList = Vector[UserNode]()
   var photoList = Vector[PhotoNode]()
+  var albumList = Vector[AlbumNode]()
 }
 
 
@@ -78,15 +80,15 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
       pathEnd {
         post {
           entity(as[Post]) { post => requestContext =>
-            var newPostId = RestApi.getId
             val responder = createResponder(requestContext)
-
             val resultUser: Option[UserNode] = RestApi.userList.find(_.id == post.userId)
+
             if(resultUser.isEmpty) {
               //invalid user id
               responder ! NodeNotFound("User")
             } else {
               //Valid user, create a new post.
+              var newPostId = RestApi.getId
               val postNode: PostNode = new PostNode(newPostId, resultUser.get, post.content)
               RestApi.postList = RestApi.postList :+ postNode
               resultUser.get.postList = resultUser.get.postList :+ postNode.id
@@ -121,13 +123,27 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
       pathEnd {
         post {
           entity(as[User]) { user => requestContext =>
-            var newUserId = RestApi.getId
-            val userNode: UserNode = new UserNode(newUserId, user.firstname, user.lastname, user.gender)
-            RestApi.userList = RestApi.userList :+ userNode
-            // TODO: send user already exists error code
-            println("Created new user with id: " + userNode.id)
             val responder = createResponder(requestContext)
-            responder ! NodeCreated(newUserId)
+            val resultUser: Option[UserNode] = RestApi.userList.find(_.email == user.email)
+            if(resultUser.isEmpty) {
+              responder ! UserAlreadyExists
+            } else {
+              var newUserId = RestApi.getId
+              var newDefaultAlbumId = RestApi.getId
+
+              val albumNode: AlbumNode = new AlbumNode(newDefaultAlbumId, "Timeline Photos", 
+                "", newUserId, Calendar.getInstance().getTime().toString) 
+              val userNode: UserNode = new UserNode(newUserId, user.email, user.firstname, 
+                user.lastname, user.gender)
+              
+              userNode.albumList = userNode.albumList :+ newDefaultAlbumId
+
+              RestApi.userList = RestApi.userList :+ userNode
+              RestApi.albumList = RestApi.albumList :+ albumNode
+
+              println("Created new user with id: " + userNode.id)
+              responder ! NodeCreated(newUserId)
+            }
           }
         }
       } ~
@@ -151,14 +167,12 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
             .getOrElse(responder ! NodeNotFound("User"))
         }
       }
-    }~
+    } ~
     pathPrefix("photo") {
       pathEnd {
         post {
           entity(as[Photo]) { photo => requestContext =>
-            var newPhotoId = RestApi.getId
             val responder = createResponder(requestContext)
-            val photoNode: PhotoNode = new PhotoNode(newPhotoId, photo.caption, photo.album, photo.from, photo.photo)
 
             //find if user exists
             var user: Option[UserNode] = RestApi.userList.find(_.id == id)
@@ -166,11 +180,13 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
               responder ! NodeNotFound("User")
             } else {
               //find if that user has the album id
-              var photoAlbum: Option[AlbumNode] = user.albumList.find(_ == id)
+              var photoAlbum: Option[AlbumNode] = user.get.albumList.find(_ == id)
               if (photoAlbum.isEmpty) {
                 responder ! NodeNotFound("Album")
               }
               else {
+                var newPhotoId = RestApi.getId
+                val photoNode: PhotoNode = new PhotoNode(newPhotoId, photo.caption, photo.albumId, photo.creatorId, photo.photo)
                 RestApi.photoList = RestApi.photoList :+ photoNode
                 photoAlbum.get = photoAlbum.get :+ photoNode.id
                 println("Created new photo with id: " + photoNode.id + " for Album id " + photoAlbum.get.id)
@@ -200,6 +216,46 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
             .getOrElse(responder ! NodeNotFound("Photo"))
         }
       }
+    } ~
+    pathPrefix("album") {
+      pathEnd {
+        post {
+          entity(as[Album]) { album => requestContext =>
+            val responder = createResponder(requestContext)
+            var newAlbumId = RestApi.getId
+            val resultUser: Option[UserNode] = RestApi.userList.find(_.id == album.creatorId)
+            if(resultUser.isEmpty) {
+              responder ! NodeNotFound("User")
+            } else {
+              val albumNode: AlbumNode = new AlbumNode(newAlbumId, album.name, album.caption, 
+              album.creatorId, Calendar.getInstance().getTime().toString)
+              RestApi.albumList = RestApi.albumList :+ albumNode
+              println("Created new album by: " + album.creatorId + ", id:" + newAlbumId)
+              response ! NodeCreated(newAlbumId)
+            }
+          }
+        }
+      } ~
+      path(Segment) {  id =>
+        delete { requestContext =>
+          println("delete album " + id)
+          val responder = createResponder(requestContext)
+          var resultAlbum: Option[AlbumNode] = RestApi.albumList.find(_.id == id)
+          if(resultAlbum.isEmpty) {
+            responder ! NodeNotFound("Album")
+          } else {
+            RestApi.albumList = RestApi.albumList.filterNot(_.id == id)
+            responder ! AlbumDeleted
+          }
+        } ~
+        get { requestContext =>
+          println("get album " + id)
+          var resultAlbum: Option[AlbumNode] = RestApi.albumList.find(_.id == id)
+          val responder = createResponder(requestContext)
+          resultAlbum.map(responder ! _.albumResponse())
+            .getOrElse(responder ! NodeNotFound("Album"))
+        }
+      }
     }
 
   private def createResponder(requestContext:RequestContext) = {
@@ -216,12 +272,12 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
       requestContext.complete(StatusCodes.Created, "Node created with id:" + id)
       killYourself
 
-    case PageDeleted | PostDeleted | UserDeleted | PhotoDeleted =>
+    case PageDeleted | PostDeleted | UserDeleted | PhotoDeleted | AlbumDeleted =>
       requestContext.complete(StatusCodes.OK)
       killYourself
 
-    case PageAlreadyExists =>
-      requestContext.complete(StatusCodes.Conflict, "The page already exists")
+    case UserAlreadyExists =>
+      requestContext.complete(StatusCodes.Conflict, "A user with that email is already registered")
       killYourself
 
     case NodeNotFound(nodeType: String) =>

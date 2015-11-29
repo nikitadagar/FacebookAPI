@@ -4,7 +4,7 @@ import Array._
 import ufl.FacebookAPI._
 
 class PageNode(pageId:String, pageName:String, pageAbout:String)  {
-    var id = pageId
+    val id = pageId
     var name = pageName
     var about = pageAbout
 
@@ -16,8 +16,8 @@ class PageNode(pageId:String, pageName:String, pageAbout:String)  {
 
 class PostNode(postId:String, postUser:UserNode, postContent:String)  {
     val id = postId
-    val user = postUser
-    val content = postContent
+    var user = postUser
+    var content = postContent
 
     def postResponse(): PostResponse = {
         val username = user.first_name + " " + user.last_name
@@ -26,22 +26,24 @@ class PostNode(postId:String, postUser:UserNode, postContent:String)  {
     }
 }
 
-class UserNode(userId:String, firstName:String, lastName:String, userGender:String) {
+class UserNode(userId:String, useremail:String, firstName:String, lastName:String, userGender:String) {
     val id = userId
-    val first_name = firstName
-    val last_name = lastName
-    val gender = userGender
+    var email = userEmail
+    var first_name = firstName
+    var last_name = lastName
+    var gender = userGender
     var postList = Vector[String]()
+    var albumList = Vector[String]()
 
     def userResponse(): UserResponse = {
-        val userResponse = new UserResponse(id, first_name, last_name
-            , gender, postList)
+        val userResponse = new UserResponse(id, email, first_name, last_name
+            , gender, postList, albumList)
         userResponse
     }
 }
 
 class PhotoNode(photoId:String, photoCaption:String, photoAlbum:String, creator:String, photoArray:Array[Byte]){
-    var id = photoId
+    val id = photoId
     var caption = photoCaption
     var album = photoAlbum
     var from = creator
@@ -50,6 +52,21 @@ class PhotoNode(photoId:String, photoCaption:String, photoAlbum:String, creator:
     def photoResponse(): PhotoResponse = {
         val photoResponse = new PhotoResponse(id, caption, album , from, photo)
         photoResponse
+    }
+}
+
+class AlbumNode(albumId: String, albumName: String, albumCaption: String, albumCreatorId: String, albumCreated_time:String) {
+    val id = albumId
+    var name = albumName
+    var caption = albumCaption
+    var creatorId = albumCreatorId
+    var created_time = albumCreated_time
+    var photos = Vector[String]()
+
+    def albumResponse(): AlbumResponse = {
+        val albumResponse = new AlbumResponse(id, photos.length, name, caption, 
+            creatorId, created_time, photos)
+        albumResponse
     }
 }
 

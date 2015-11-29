@@ -8,7 +8,6 @@ object FacebookAPI {
   case class NodeNotFound(nodeType: String)
 
   case class Page(name: String, about: String)
-  case object PageAlreadyExists
   case object PageDeleted
   case class PageResponse(id: String, name: String, about: String)
   
@@ -16,14 +15,18 @@ object FacebookAPI {
   case object PostDeleted
   case class PostResponse(id: String, userId: String, userName: String, content: String)
 
-  case class User(firstname:String, lastname:String, gender:String)
+  case class User(email: String, firstname:String, lastname:String, gender:String)
   case object UserAlreadyExists
   case object UserDeleted
-  case class UserResponse(id:String, first_name:String, last_name:String, gender:String, posts:Vector[String])
+  case class UserResponse(id:String, email: String, first_name:String, last_name:String, gender:String, posts:Vector[String], albums:Vector[String])
 
   case class Photo(caption:String, albumId:String, creatorId:String, photo:Array[Byte])
   case object PhotoDeleted
   case class PhotoResponse(id:String, caption:String, album:String, from:String, photo:Array[Byte])
+
+  case class Album(name:String, caption: String, creatorId: String)
+  case object AlbumDeleted
+  case class AlbumResponse(id: String, count: Integer, name:String, caption: String, creatorId: String, created_time:String, photos: Vector[String])
   
   /* json (un)marshalling */
   object Page extends DefaultJsonProtocol {
@@ -35,7 +38,7 @@ object FacebookAPI {
   }
 
   object User extends DefaultJsonProtocol {
-    implicit val format = jsonFormat3(User.apply)
+    implicit val format = jsonFormat4(User.apply)
   }
 
   object Photo extends DefaultJsonProtocol {
@@ -51,10 +54,14 @@ object FacebookAPI {
   }
 
   object UserResponse extends DefaultJsonProtocol {
-    implicit val format = jsonFormat5(UserResponse.apply)
+    implicit val format = jsonFormat7(UserResponse.apply)
   }
   
   object PhotoResponse extends DefaultJsonProtocol {
-    implicit val format = jsonFormat5(UserResponse.apply)
+    implicit val format = jsonFormat5(PhotoResponse.apply)
+  }
+
+  object AlbumResponse extends DefaultJsonProtocol {
+    implicit val format = jsonFormat7(AlbumResponse.apply)
   }
 }
