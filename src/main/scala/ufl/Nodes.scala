@@ -34,10 +34,11 @@ class UserNode(userId:String, userEmail:String, firstName:String, lastName:Strin
     var gender = userGender
     var postList = Vector[String]()
     var albumList = Vector[String]()
+    var friendsList = Vector[String]()
 
     def userResponse(): UserResponse = {
         val userResponse = new UserResponse(id, email, first_name, last_name
-            , gender, postList, albumList)
+            , gender, postList, albumList, friendsList)
         userResponse
     }
 }
@@ -69,16 +70,3 @@ class AlbumNode(albumId: String, albumName: String, albumCaption: String, albumC
         albumResponse
     }
 }
-
-class FriendsListNode(listId:String, ownerId:String, friend:String) {
-    val id = listId
-    val owner = ownerId
-    friends = Array[String] //stores IDs of friends
-
-    def friendsListResponse(): FriendsListResponse = {
-        val friendslistResponse = new FriendsListResponse(id, owner, friends)
-        friendslistResponse
-    }    
-}
-
-

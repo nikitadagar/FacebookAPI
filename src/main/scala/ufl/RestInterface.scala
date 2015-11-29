@@ -257,6 +257,42 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
             .getOrElse(responder ! NodeNotFound("Album"))
         }
       }
+    } ~
+    pathPrefix("friendsList") {
+      pathEnd {
+        post {
+          entity(as[FriendsList]) { friendsList => requestContext =>
+            val responder = createResponder(requestContext)
+            val resultOwner: Option[UserNode] = RestApi.userList.find(_.id == friendsList.owner)
+            val resultFriend: Option[UserNode] = RestApi.userList.find(_.id == friendsList.friend)
+            if(resultOwner.isEmpty) {
+              responder ! NodeNotFound("User")
+            } else if(resultFriend.isEmpty) {
+              responder ! NodeNotFound("Friend")
+            } else {
+              //both owner and friend exist, add in each others friends list.
+              resultOwner.get.friendsList = resultOwner.get.friendsList :+ friendsList.friend
+              resultFriend.get.friendsList = resultFriend.get.friendsList :+ friendsList.owner
+              println("Updated friends list for " + friendsList.owner + " and " + friendsList.friend)
+              responder ! FriendsListUpdated
+            }
+          }
+        }
+      } ~
+      path(Segment) { id =>
+        delete { requestContext =>
+          //not yet implemented.
+        } ~
+        get { requestContext =>
+          val responder = createResponder(requestContext)
+          val resultUser: Option[UserNode] = RestApi.userList.find(_.id == id)
+          if(resultUser.isEmpty) {
+            responder ! NodeNotFound("User")
+          } else {
+            responder ! resultUser.get.friendsList
+          }
+        }
+      }
     }
 
   private def createResponder(requestContext:RequestContext) = {
@@ -273,7 +309,7 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
       requestContext.complete(StatusCodes.Created, "Node created with id:" + id)
       killYourself
 
-    case PageDeleted | PostDeleted | UserDeleted | PhotoDeleted | AlbumDeleted =>
+    case PageDeleted | PostDeleted | UserDeleted | PhotoDeleted | AlbumDeleted | FriendsListUpdated =>
       requestContext.complete(StatusCodes.OK)
       killYourself
 
@@ -294,6 +330,10 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
       killYourself
 
     case response: UserResponse =>
+      requestContext.complete(StatusCodes.OK, response)
+      killYourself
+
+    case response: Vector[String] =>
       requestContext.complete(StatusCodes.OK, response)
       killYourself
    }

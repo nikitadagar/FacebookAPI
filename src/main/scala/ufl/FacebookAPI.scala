@@ -18,7 +18,7 @@ object FacebookAPI {
   case class User(email: String, firstname:String, lastname:String, gender:String)
   case object UserAlreadyExists
   case object UserDeleted
-  case class UserResponse(id:String, email: String, first_name:String, last_name:String, gender:String, posts:Vector[String], albums:Vector[String])
+  case class UserResponse(id:String, email: String, first_name:String, last_name:String, gender:String, posts:Vector[String], albums:Vector[String], friends:Vector[String])
 
   case class Photo(caption:String, albumId:String, creatorId:String, photo:Array[Byte])
   case object PhotoDeleted
@@ -29,7 +29,7 @@ object FacebookAPI {
   case class AlbumResponse(id: String, count: Int, name:String, caption: String, creatorId: String, created_time:String, photos: Vector[String])
 
   case class FriendsList(owner:String, friend:String)
-  case class FriendsListResponse(id:String, owner:String, friends:Array[String])
+  case object FriendsListUpdated
   
   /* json (un)marshalling */
   object Page extends DefaultJsonProtocol {
@@ -64,7 +64,7 @@ object FacebookAPI {
   }
 
   object UserResponse extends DefaultJsonProtocol {
-    implicit val format = jsonFormat7(UserResponse.apply)
+    implicit val format = jsonFormat8(UserResponse.apply)
   }
 
   object PhotoResponse extends DefaultJsonProtocol {
@@ -73,9 +73,5 @@ object FacebookAPI {
 
   object AlbumResponse extends DefaultJsonProtocol {
     implicit val format = jsonFormat7(AlbumResponse.apply)
-  }
-
-  object FriendsListResponse extends DefaultJsonProtocol {
-    implicit val format = jsonFormat3(FriendsListResponse.apply)
   }
 }
