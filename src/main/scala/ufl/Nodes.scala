@@ -40,11 +40,12 @@ class UserNode(userId:String, firstName:String, lastName:String, userGender:Stri
     }
 }
 
-class PhotoNode(photoId:String, photoCaption:String, photoAlbum:String, creator:String){
+class PhotoNode(photoId:String, photoCaption:String, photoAlbum:String, creator:String, photoArray:Array[Byte]){
     var id = photoId
     var caption = photoCaption
     var album = photoAlbum
-    var from = creator 
+    var from = creator
+    var photo = photoArray
 }
 
 

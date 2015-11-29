@@ -19,11 +19,12 @@ object FacebookAPI {
   case class User(firstname:String, lastname:String, gender:String)
   case object UserAlreadyExists
   case object UserDeleted
-    case class UserResponse(id:String, first_name:String, last_name:String, gender:String, posts:Vector[String])
+  case class UserResponse(id:String, first_name:String, last_name:String, gender:String, posts:Vector[String])
 
-  case class Photo(caption:String, album:String, from:String)
+  case class Photo(caption:String, album:String, from:String, photo:Array[Byte])
   case object PhotoAlreadyExists
   case object PhotoDeleted
+  case class PhotoResponse()
   
   /* json (un)marshalling */
   object Page extends DefaultJsonProtocol {
