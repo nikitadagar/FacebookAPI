@@ -57,15 +57,12 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
       } ~
       path(Segment) { id =>
         delete { requestContext =>
-          println("delete page " + id)
           val responder = createResponder(requestContext)
-          var resultPage: Option[PageNode] = RestApi.pageList.find(_.id == id)
-          if(resultPage.isEmpty) {
-            responder ! NodeNotFound("Page")
-          } else {
-            RestApi.pageList = RestApi.pageList.filterNot(_.id == id)
+          var result = deletePage(id)
+          if(result)
             responder ! PageDeleted
-          }
+          else
+            responder ! NodeNotFound("Page")
         } ~
         get { requestContext =>
           println("get page " + id)
@@ -292,12 +289,15 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
     context.actorOf(Props(new Responder(requestContext)))
   }
 
-  private def deletePage(id:String) {
-
-  }
-
-  private def deletePost(id:String) {
-
+  private def deletePage(id:String): Boolean = {
+    println("delete page " + id)
+    var resultPage: Option[PageNode] = RestApi.pageList.find(_.id == id)
+    if(resultPage.isEmpty) {
+      return false
+    } else {
+      RestApi.pageList = RestApi.pageList.filterNot(_.id == id)
+      return true
+    }
   }
 
   private def deletePost(id:String) {
@@ -313,7 +313,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
   }
 
   private def deleteAlbum(id:String) {
-    
+
   }
 }
 
