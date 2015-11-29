@@ -26,7 +26,7 @@ class PostNode(postId:String, postUser:UserNode, postContent:String)  {
     }
 }
 
-class UserNode(userId:String, useremail:String, firstName:String, lastName:String, userGender:String) {
+class UserNode(userId:String, userEmail:String, firstName:String, lastName:String, userGender:String) {
     val id = userId
     var email = userEmail
     var first_name = firstName
