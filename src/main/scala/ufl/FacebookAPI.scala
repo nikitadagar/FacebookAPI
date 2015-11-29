@@ -20,6 +20,13 @@ object FacebookAPI {
   case object UserAlreadyExists
   case object UserDeleted
   case object UserNotFound
+
+  case class Photo(caption:String, album:String, from:String)
+  case object PhotoCreated
+  case object PhotoAlreadyExists
+  case object PhotoDeleted
+  case object PhotoNotFound
+
   
   /* json (un)marshalling */
   object Page extends DefaultJsonProtocol {
@@ -32,5 +39,9 @@ object FacebookAPI {
 
   object User extends DefaultJsonProtocol {
     implicit val format = jsonFormat3(User.apply)
+  }
+
+  object Photo extends DefaultJsonProtocol {
+    implicit val format = jsonFormat3(Photo.apply)
   }
 }

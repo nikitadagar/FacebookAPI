@@ -27,6 +27,7 @@ object RestApi {
   var pageList = Vector[PageNode]()
   var postList = Vector[PostNode]()
   var userList = Vector[UserNode]()
+  var photoList = Vector[PhotoNode]()
 }
 
 
@@ -102,7 +103,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
           if(resultPost.isEmpty) {
             responder ! PostNotFound
           } else {
-            RestApi.pageList = RestApi.postList.filterNot(_.id == id)
+            RestApi.postList = RestApi.postList.filterNot(_.id == id)
             responder ! PostDeleted
           }
         } ~
@@ -149,6 +150,41 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
             .getOrElse(responder ! UserNotFound)
         }
       }
+    }~
+    pathPrefix("photo") {
+      pathEnd {
+        post {
+          entity(as[Photo]) { photo => requestContext =>
+            var newPhotoId = RestApi.getId
+            val photoNode: PhotoNode = new PhotoNode(newPhotoId, photo.caption, photo. album, photo.from)
+            RestApi.photoList = RestApi.photoList :+ photoNode
+            // TODO: send photo already exists error code
+            println("Created new photo with id: " + photoNode.id)
+            val responder = createResponder(requestContext)
+            responder ! PhotoCreated
+          }
+        }
+      } ~
+      path(Segment) { id =>
+        delete { requestContext =>
+          // println("delete user " + id)
+          // val responder = createResponder(requestContext)
+          // var resultUser: Option[UserNode] = RestApi.userList.find(_.id == id)
+          // if(resultUser.isEmpty) {
+          //   responder ! UserNotFound
+          // } else {
+          //   RestApi.userList = RestApi.userList.filterNot(_.id == id)
+          //   responder ! UserDeleted
+          // }
+        } ~
+        get { requestContext =>
+          // println("get user " + id)
+          // var resultUser: Option[UserNode] = RestApi.userList.find(_.id == id)
+          // val responder = createResponder(requestContext)
+          // resultUser.map(responder ! _.toMap())
+          //   .getOrElse(responder ! UserNotFound)
+        }
+      }
     }
 
   private def createResponder(requestContext:RequestContext) = {
@@ -161,7 +197,7 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
   
   def receive = {
 
-    case PageCreated | PostCreated | UserCreated =>
+    case PageCreated | PostCreated | UserCreated | PhotoCreated =>
       requestContext.complete(StatusCodes.Created)
       killYourself
 

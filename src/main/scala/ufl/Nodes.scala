@@ -4,9 +4,9 @@ import scala.collection.immutable.Map
 import Array._
 
 class PostNode(postId:String, postUser:UserNode, postContent:String)  {
-    val id = postId
-    val user = postUser
-    val content = postContent
+    var id = postId
+    var user = postUser
+    var content = postContent
 
     //Put all post data in a map, used for conversion to JSON.
     def toMap(): Map[String, String] = {
@@ -21,9 +21,9 @@ class PostNode(postId:String, postUser:UserNode, postContent:String)  {
 }
 
 class PageNode(pageId:String, pageName:String, pageAbout:String)  {
-    val id = pageId
-    val name = pageName
-    val about = pageAbout
+    var id = pageId
+    var name = pageName
+    var about = pageAbout
 
     def toMap(): Map[String, String] = {
         var result:Map[String, String] = Map[String, String]()
@@ -35,10 +35,10 @@ class PageNode(pageId:String, pageName:String, pageAbout:String)  {
 }
 
 class UserNode(userId:String, firstName:String, lastName:String, userGender:String) {
-    val id = userId
-    val first_name = firstName
-    val last_name = lastName
-    val gender = userGender
+    var id = userId
+    var first_name = firstName
+    var last_name = lastName
+    var gender = userGender
     var postList = Vector[PostNode]()
 
     def postsToListString(): String = {
@@ -60,3 +60,12 @@ class UserNode(userId:String, firstName:String, lastName:String, userGender:Stri
         result
     }
 }
+
+class PhotoNode(photoId:String, photoCaption:String, photoAlbum:String, creator:String){
+    var id = photoId
+    var caption = photoCaption
+    var album = photoAlbum
+    var from = creator 
+}
+
+
