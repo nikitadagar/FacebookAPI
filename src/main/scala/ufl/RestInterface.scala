@@ -58,8 +58,8 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
       path(Segment) { id =>
         delete { requestContext =>
           val responder = createResponder(requestContext)
-          var result = deletePage(id)
-          if(result)
+          var pageDeleted = deletePage(id)
+          if(pageDeleted)
             responder ! PageDeleted
           else
             responder ! NodeNotFound("Page")
@@ -97,16 +97,12 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
       } ~
       path(Segment) { id =>
         delete { requestContext =>
-          println("delete user " + id)
           val responder = createResponder(requestContext)
-          var resultPost: Option[PostNode] = RestApi.postList.find(_.id == id)
-          if(resultPost.isEmpty) {
-            responder ! NodeNotFound("Post")
-          } else {
-            RestApi.postList = RestApi.postList.filterNot(_.id == id)
-
+          var postDeleted = deletePost(id)
+          if(postDeleted)
             responder ! PostDeleted
-          }
+          else
+            responder ! NodeNotFound("Post")
         } ~
         get { requestContext =>
           println("get post " + id)
@@ -139,15 +135,8 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
       } ~
       path(Segment) { id =>
         delete { requestContext =>
-          println("delete user " + id)
           val responder = createResponder(requestContext)
-          var resultUser: Option[UserNode] = RestApi.userList.find(_.id == id)
-          if(resultUser.isEmpty) {
-            responder ! NodeNotFound("User")
-          } else {
-            RestApi.userList = RestApi.userList.filterNot(_.id == id)
-            responder ! UserDeleted
-          }
+          var result = deleteUser(id)
         } ~
         get { requestContext =>
           println("get user " + id)
@@ -300,12 +289,31 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
     }
   }
 
-  private def deletePost(id:String) {
-
+  private def deletePost(id:String): Boolean = {
+    println("delete user " + id)
+    var resultPost: Option[PostNode] = RestApi.postList.find(_.id == id)
+    if(resultPost.isEmpty) {
+      return false
+    } else {
+      var resultUser: Option[UserNode] = RestApi.userList.find(_.id == resultPost.get.creatorId) //get the creator user
+      resultUser.get.postList = resultUser.get.postList.filterNot(_ == id) //delete post from the post list of the creator user
+      RestApi.postList = RestApi.postList.filterNot(_.id == id) //delete post from the list of posts
+      return true
+    }
   }
 
-  private def deleteUser(id:String) {
+  private def deleteUser(id:String): Boolean = {
+    println("delete user " + id)
+    var resultUser: Option[UserNode] = RestApi.userList.find(_.id == id)
+    if(resultUser.isEmpty) {
+      return false
+    } else {
+      resultUser.get.postList.foreach {deletePhoto(_)}
+      resultUser.get.albumList.foreach {deleteAlbum(_)}
 
+      RestApi.userList = RestApi.userList.filterNot(_.id == id)
+      return true
+    }
   }
 
   private def deletePhoto(id:String) {
@@ -313,6 +321,11 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
   }
 
   private def deleteAlbum(id:String) {
+
+  }
+
+  private def deleteFromFriendList(friendListOfId:String, deleteUserId:String) {
+    //delete 
 
   }
 }
