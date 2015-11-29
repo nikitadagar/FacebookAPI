@@ -149,7 +149,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
       } ~
       path(Segment) { id =>
         delete { requestContext =>
-          println("delete user " + id)
+          println("delete post " + id)
           val responder = createResponder(requestContext)
           var resultUser: Option[UserNode] = RestApi.userList.find(_.id == id)
           if(resultUser.isEmpty) {
