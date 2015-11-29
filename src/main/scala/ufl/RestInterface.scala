@@ -175,21 +175,22 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
             val responder = createResponder(requestContext)
 
             //find if user exists
-            var user: Option[UserNode] = RestApi.userList.find(_.id == id)
+            var user: Option[UserNode] = RestApi.userList.find(_.id == photo.creatorId)
             if (user.isEmpty) {
               responder ! NodeNotFound("User")
             } else {
               //find if that user has the album id
-              var photoAlbum: Option[AlbumNode] = user.get.albumList.find(_ == id)
-              if (photoAlbum.isEmpty) {
+              var photoAlbumId: Option[String] = user.get.albumList.find(_ == photo.albumId)
+              if (photoAlbumId.isEmpty) {
                 responder ! NodeNotFound("Album")
               }
               else {
                 var newPhotoId = RestApi.getId
+                var resultAlbum: Option[AlbumNode] = RestApi.albumList.find(_.id == photoAlbumId.get)
                 val photoNode: PhotoNode = new PhotoNode(newPhotoId, photo.caption, photo.albumId, photo.creatorId, photo.photo)
                 RestApi.photoList = RestApi.photoList :+ photoNode
-                photoAlbum.get = photoAlbum.get :+ photoNode.id
-                println("Created new photo with id: " + photoNode.id + " for Album id " + photoAlbum.get.id)
+                resultAlbum.get.photos = resultAlbum.get.photos :+ photoNode.id
+                println("Created new photo with id: " + photoNode.id + " for Album id " + resultAlbum.get.id)
                 responder ! NodeCreated(newPhotoId)
               }
             }
@@ -231,7 +232,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
               album.creatorId, Calendar.getInstance().getTime().toString)
               RestApi.albumList = RestApi.albumList :+ albumNode
               println("Created new album by: " + album.creatorId + ", id:" + newAlbumId)
-              response ! NodeCreated(newAlbumId)
+              responder ! NodeCreated(newAlbumId)
             }
           }
         }
