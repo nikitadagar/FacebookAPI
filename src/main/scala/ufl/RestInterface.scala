@@ -310,7 +310,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
     } else {
       resultUser.get.postList.foreach {deletePhoto(_)}
       resultUser.get.albumList.foreach {deleteAlbum(_)}
-
+      resultUser.get.friendsList.foreach {deleteFromFriendList(_, id)} //delete myself from the friend list of my friends.
       RestApi.userList = RestApi.userList.filterNot(_.id == id)
       return true
     }
@@ -325,8 +325,9 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
   }
 
   private def deleteFromFriendList(friendListOfId:String, deleteUserId:String) {
-    //delete 
-
+    //delete deleteUserId from the list of friendListOfId
+    var resultUser: Option[UserNode] = RestApi.userList.find(_.id == friendListOfId)
+    resultUser.get.friendsList = resultUser.get.friendsList.filterNot(_ == deleteUserId)
   }
 }
 
