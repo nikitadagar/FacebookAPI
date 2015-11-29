@@ -125,7 +125,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
           entity(as[User]) { user => requestContext =>
             val responder = createResponder(requestContext)
             val resultUser: Option[UserNode] = RestApi.userList.find(_.email == user.email)
-            if(resultUser.isEmpty) {
+            if(!resultUser.isEmpty) {
               responder ! UserAlreadyExists
             } else {
               var newUserId = RestApi.getId
