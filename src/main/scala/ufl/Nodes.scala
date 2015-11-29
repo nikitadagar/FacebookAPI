@@ -14,14 +14,13 @@ class PageNode(pageId:String, pageName:String, pageAbout:String)  {
     }
 }
 
-class PostNode(postId:String, postUser:UserNode, postContent:String)  {
+class PostNode(postId:String, postUserId:String, postContent:String)  {
     val id = postId
-    var user = postUser
+    var creatorId = postUserId
     var content = postContent
 
     def postResponse(): PostResponse = {
-        val username = user.first_name + " " + user.last_name
-        val postResponse = new PostResponse(id, user.id, username, content)
+        val postResponse = new PostResponse(id, creatorId, content)
         postResponse
     }
 }
