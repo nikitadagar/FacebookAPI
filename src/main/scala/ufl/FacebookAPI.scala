@@ -54,6 +54,7 @@ object FacebookAPI {
 
   object FriendsList extends DefaultJsonProtocol {
     implicit val format = jsonFormat2(FriendsList.apply)
+  }
 
   object PageResponse extends DefaultJsonProtocol {
     implicit val format = jsonFormat3(PageResponse.apply)
