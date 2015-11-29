@@ -6,6 +6,7 @@ import spray.http.StatusCodes
 import spray.httpx.SprayJsonSupport._
 import spray.json.DefaultJsonProtocol._
 import spray.routing._
+import spray.json._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -47,7 +48,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
 
             println("Created new page: " + pageNode.name + ", id: " + pageNode.id)
             val responder = createResponder(requestContext)
-            responder ! PageCreated
+            responder ! NodeCreated(newPageId)
           }
         }
       } ~
@@ -57,7 +58,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
           val responder = createResponder(requestContext)
           var resultPage: Option[PageNode] = RestApi.pageList.find(_.id == id)
           if(resultPage.isEmpty) {
-            responder ! PageNotFound
+            responder ! NodeNotFound("Page")
           } else {
             RestApi.pageList = RestApi.pageList.filterNot(_.id == id)
             responder ! PageDeleted
@@ -67,8 +68,8 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
           println("get page " + id)
           var resultPage: Option[PageNode] = RestApi.pageList.find(_.id == id)
           val responder = createResponder(requestContext)
-          resultPage.map(responder ! _.toMap())
-            .getOrElse(responder ! PageNotFound)
+          resultPage.map(responder ! _.pageResponse())
+            .getOrElse(responder ! NodeNotFound("Page"))
         }
       }
     } ~
@@ -82,14 +83,14 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
             val resultUser: Option[UserNode] = RestApi.userList.find(_.id == post.userId)
             if(resultUser.isEmpty) {
               //invalid user id
-              responder ! UserNotFound
+              responder ! NodeNotFound("User")
             } else {
               //Valid user, create a new post.
               val postNode: PostNode = new PostNode(newPostId, resultUser.get, post.content)
               RestApi.postList = RestApi.postList :+ postNode
-
-              println("Created new post by: " + resultUser.get.id + ", id: " + postNode.id)
-              responder ! PostCreated
+              resultUser.get.postList = resultUser.get.postList :+ postNode.id
+              println("Created new post by: " + resultUser.get.id + ", id: " + postNode.id + ", posts: " + resultUser.get.postList.length)
+              responder ! NodeCreated(newPostId)
             }
           }
         }
@@ -100,9 +101,9 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
           val responder = createResponder(requestContext)
           var resultPost: Option[PostNode] = RestApi.postList.find(_.id == id)
           if(resultPost.isEmpty) {
-            responder ! PostNotFound
+            responder ! NodeNotFound("Post")
           } else {
-            RestApi.pageList = RestApi.postList.filterNot(_.id == id)
+            RestApi.postList = RestApi.postList.filterNot(_.id == id)
             responder ! PostDeleted
           }
         } ~
@@ -110,8 +111,8 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
           println("get post " + id)
           var resultPost: Option[PostNode] = RestApi.postList.find(_.id == id)
           val responder = createResponder(requestContext)
-          resultPost.map(responder ! _.toMap())
-            .getOrElse(responder ! PostNotFound)
+          resultPost.map(responder ! _.postResponse())
+            .getOrElse(responder ! NodeNotFound("Post"))
         }
       }
     } ~
@@ -125,7 +126,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
             // TODO: send user already exists error code
             println("Created new user with id: " + userNode.id)
             val responder = createResponder(requestContext)
-            responder ! UserCreated
+            responder ! NodeCreated(newUserId)
           }
         }
       } ~
@@ -135,7 +136,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
           val responder = createResponder(requestContext)
           var resultUser: Option[UserNode] = RestApi.userList.find(_.id == id)
           if(resultUser.isEmpty) {
-            responder ! UserNotFound
+            responder ! NodeNotFound("User")
           } else {
             RestApi.userList = RestApi.userList.filterNot(_.id == id)
             responder ! UserDeleted
@@ -145,8 +146,8 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
           println("get user " + id)
           var resultUser: Option[UserNode] = RestApi.userList.find(_.id == id)
           val responder = createResponder(requestContext)
-          resultUser.map(responder ! _.toMap())
-            .getOrElse(responder ! UserNotFound)
+          resultUser.map(responder ! _.userResponse())
+            .getOrElse(responder ! NodeNotFound("User"))
         }
       }
     }
@@ -161,8 +162,8 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
   
   def receive = {
 
-    case PageCreated | PostCreated | UserCreated =>
-      requestContext.complete(StatusCodes.Created)
+    case NodeCreated(id: String) =>
+      requestContext.complete(StatusCodes.Created, "Node created with id:" + id)
       killYourself
 
     case PageDeleted | PostDeleted | UserDeleted =>
@@ -173,20 +174,20 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
       requestContext.complete(StatusCodes.Conflict, "The page already exists")
       killYourself
 
-    case PageNotFound =>
-      requestContext.complete(StatusCodes.NotFound, "Page not found")
+    case NodeNotFound(nodeType: String) =>
+      requestContext.complete(StatusCodes.NotFound, nodeType + " not found")  
+      killYourself    
+
+    case response: PageResponse =>
+      requestContext.complete(StatusCodes.OK, response)
       killYourself
 
-    case PostNotFound =>
-      requestContext.complete(StatusCodes.NotFound, "Post not found")
+    case response: PostResponse =>
+      requestContext.complete(StatusCodes.OK, response)
       killYourself
 
-    case UserNotFound =>
-      requestContext.complete(StatusCodes.NotFound, "User not found")
-      killYourself
-
-    case jsonMap: Map[String, String] =>
-      requestContext.complete(StatusCodes.OK, jsonMap)
+    case response: UserResponse =>
+      requestContext.complete(StatusCodes.OK, response)
       killYourself
    }
 
