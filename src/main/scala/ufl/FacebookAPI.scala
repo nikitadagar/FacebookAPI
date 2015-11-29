@@ -4,29 +4,26 @@ object FacebookAPI {
   
   import spray.json._
 
+  case class NodeCreated(id: String)
+  case class NodeNotFound(nodeType: String)
+
   case class Page(name: String, about: String)
-  case object PageCreated
   case object PageAlreadyExists
   case object PageDeleted
-  case object PageNotFound
+  case class PageResponse(id: String, name: String, about: String)
   
   case class Post(userId: String, content: String)
-  case object PostCreated
   case object PostDeleted
-  case object PostNotFound
+  case class PostResponse(id: String, userId: String, userName: String, content: String)
 
   case class User(firstname:String, lastname:String, gender:String)
-  case object UserCreated
   case object UserAlreadyExists
   case object UserDeleted
-  case object UserNotFound
+    case class UserResponse(id:String, first_name:String, last_name:String, gender:String, posts:Vector[String])
 
   case class Photo(caption:String, album:String, from:String)
-  case object PhotoCreated
   case object PhotoAlreadyExists
   case object PhotoDeleted
-  case object PhotoNotFound
-
   
   /* json (un)marshalling */
   object Page extends DefaultJsonProtocol {
@@ -43,5 +40,17 @@ object FacebookAPI {
 
   object Photo extends DefaultJsonProtocol {
     implicit val format = jsonFormat3(Photo.apply)
+  }
+
+  object PageResponse extends DefaultJsonProtocol {
+    implicit val format = jsonFormat3(PageResponse.apply)
+  }
+
+  object PostResponse extends DefaultJsonProtocol {
+    implicit val format = jsonFormat4(PostResponse.apply)
+  }
+
+  object UserResponse extends DefaultJsonProtocol {
+    implicit val format = jsonFormat5(UserResponse.apply)
   }
 }

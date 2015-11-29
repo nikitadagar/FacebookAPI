@@ -1,63 +1,42 @@
 package ufl
 
-import scala.collection.immutable.Map
 import Array._
-
-class PostNode(postId:String, postUser:UserNode, postContent:String)  {
-    var id = postId
-    var user = postUser
-    var content = postContent
-
-    //Put all post data in a map, used for conversion to JSON.
-    def toMap(): Map[String, String] = {
-        var result:Map[String, String] = Map[String, String]()
-        result += ("id" -> id)
-        result += ("userId" -> user.id)
-        result += ("userFirstName" -> user.first_name)
-        result += ("userLastName" -> user.last_name)
-        result += ("content" -> content)
-        result
-    }
-}
+import ufl.FacebookAPI._
 
 class PageNode(pageId:String, pageName:String, pageAbout:String)  {
     var id = pageId
     var name = pageName
     var about = pageAbout
 
-    def toMap(): Map[String, String] = {
-        var result:Map[String, String] = Map[String, String]()
-        result += ("id" -> id)
-        result += ("name" -> name)
-        result += ("about" -> about)
-        result
+    def pageResponse(): PageResponse = {
+        val pageResponse = new PageResponse(id, name, about)
+        pageResponse
+    }
+}
+
+class PostNode(postId:String, postUser:UserNode, postContent:String)  {
+    val id = postId
+    val user = postUser
+    val content = postContent
+
+    def postResponse(): PostResponse = {
+        val username = user.first_name + " " + user.last_name
+        val postResponse = new PostResponse(id, user.id, username, content)
+        postResponse
     }
 }
 
 class UserNode(userId:String, firstName:String, lastName:String, userGender:String) {
-    var id = userId
-    var first_name = firstName
-    var last_name = lastName
-    var gender = userGender
-    var postList = Vector[PostNode]()
+    val id = userId
+    val first_name = firstName
+    val last_name = lastName
+    val gender = userGender
+    var postList = Vector[String]()
 
-    def postsToListString(): String = {
-        var result: Array[String] = Array[String]()
-        postList.foreach {
-            result:+ _.id
-        }
-        val resultString = "[" + result.mkString(", ") + "]"
-        resultString
-    }
-
-    def toMap(): Map[String, String] = {
-        var result:Map[String, String] = Map[String, String]()
-        result += ("id" -> id)
-        result += ("first_name" -> first_name)
-        result += ("last_name" -> last_name)
-        result += ("gender" -> gender)
-        result += ("posts" -> postsToListString())
-        result
+    def userResponse(): UserResponse = {
+        val userResponse = new UserResponse(id, first_name, last_name
+            , gender, postList)
+        userResponse
     }
 }
 
