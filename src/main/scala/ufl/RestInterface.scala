@@ -76,7 +76,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
     pathPrefix("post") {
       pathEnd {
         post {
-          entity(as[Post]) { post => requestContext =>
+          entity(as[FBPost]) { post => requestContext =>
             val responder = createResponder(requestContext)
             val resultUser: Option[UserNode] = RestApi.userList.find(_.id == post.userId)
 

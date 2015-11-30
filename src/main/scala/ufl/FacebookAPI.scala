@@ -11,7 +11,7 @@ object FacebookAPI {
   case object PageDeleted
   case class PageResponse(id: String, name: String, about: String)
   
-  case class Post(userId: String, content: String)
+  case class FBPost(userId: String, content: String)
   case object PostDeleted
   case class PostResponse(id: String, userId: String, content: String)
 
@@ -36,8 +36,8 @@ object FacebookAPI {
     implicit val format = jsonFormat2(Page.apply)
   }
 
-  object Post extends DefaultJsonProtocol {
-    implicit val format = jsonFormat2(Post.apply)
+  object FBPost extends DefaultJsonProtocol {
+    implicit val format = jsonFormat2(FBPost.apply)
   }
 
   object User extends DefaultJsonProtocol {

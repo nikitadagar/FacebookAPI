@@ -21,11 +21,17 @@ object Main extends App {
   implicit val executionContext = system.dispatcher
   implicit val timeout = Timeout(10 seconds)
 
+  val user = system.actorOf(Props(new UserActor()), "user")
+
   IO(Http).ask(Http.Bind(listener = api, interface = host, port = port))
     .mapTo[Http.Event]
     .map {
       case Http.Bound(address) =>
         println(s"REST interface bound to $address")
+        Thread.sleep(2000)
+        user ! postUser
+        Thread.sleep(1000)
+        user ! getUser
       case Http.CommandFailed(cmd) =>
         println("REST interface could not bind to " +
           s"$host:$port, ${cmd.failureMessage}")
