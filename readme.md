@@ -68,7 +68,7 @@ All other requests are illustrated below with only the URLs
 Client
 ———————————————————————————————
 
-The client is an actor which is a simulator of a real life user. It carries out the common actions by a user on Facebook like Add a post, Upload a photo, get all photo albums, add a friend etc. The number of total 
+The client is an actor which is a simulator of a real life user. It carries out the common actions by a user on Facebook like Add a post, Upload a photo, get all photo albums, add a friend etc. The number of total user simultaneously tested were 1000. 
 
 
 

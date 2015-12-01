@@ -149,17 +149,24 @@ class UserActor extends Actor {
   def uploadPhoto(userId:String) = {
   	val user = getUser(userId)
   	val rand = new Random(System.currentTimeMillis());
-  	val random_index = rand.nextInt(user.albums.length);
-  	val albumId = user.albums(random_index);
-  	//converting photo to a byte array
-  	var photoArray: Array[Byte] = Files.readAllBytes(Paths.get("img/download.jpeg"))
-  	// TODO: change creator ID
-  	var photo:Photo = new Photo("Caption", albumId, userId, photoArray)
+  	val len = user.albums.length
+  	if(len > 0) {
+	  	val random_index = rand.nextInt(len);
+	  	val albumId = user.albums(random_index);
+	  	//converting photo to a byte array
+	  	var photoArray: Array[Byte] = Files.readAllBytes(Paths.get("img/download.jpeg"))
+	  	// TODO: change creator ID
+	  	var photo:Photo = new Photo("Caption", albumId, userId, photoArray)
 
-  	val pipeline = sendReceive ~> unmarshal[String]
-  	val responseFuture = pipeline(Post("http://localhost:5000/photo", photo))
-  	val result = Await.result(responseFuture, userTimeout)
-  	println("[CLIENT] Photo " + result)
+	  	val pipeline = sendReceive ~> unmarshal[String]
+	  	val responseFuture = pipeline(Post("http://localhost:5000/photo", photo))
+	  	val result = Await.result(responseFuture, userTimeout)
+	  	println("[CLIENT] Photo " + result)
+
+	  }
+	  else {
+	  	createAlbum
+	  }
   }
 
   def getPhoto(id: String) : PhotoResponse = {
