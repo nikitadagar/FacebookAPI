@@ -169,4 +169,13 @@ class UserActor(isHeavy:Boolean) extends Actor {
   		println("[CLIENT] Album id :" + id + "has photos(ids) : " + album.photos) 
   	}
   }
+
+  def deleteAlbum(albumId:String) = {
+  	val pipeline = sendReceive ~> unmarshal[String]
+    val responseFuture = pipeline(Delete("http://localhost:5000/album/" + albumId))
+    val result = Await.result(responseFuture, userTimeout)
+    println("[CLIENT] Album deleted " + result)
+    result
+  }
+
 }
