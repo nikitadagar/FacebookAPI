@@ -221,7 +221,10 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
       path(Segment) {  id =>
         delete { requestContext =>
           val responder = createResponder(requestContext)
-            responder ! AlbumDeleted
+          if(deleteAlbum(id))
+            responder ! UserDeleted
+          else
+            responder ! NodeNotFound("User")
         } ~
         get { requestContext =>
           var resultAlbum: Option[AlbumNode] = RestApi.albumList.find(_.id == id)
@@ -341,8 +344,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
       } else {
         resultAlbum.get.photos.foreach { deletePhoto(_) } //delete all photos from album
         val user = RestApi.userList.find(_.id == resultAlbum.get.creatorId) //get creator of album
-        var userAlbumsList = user.get.albumList   //get user's list of albums
-        userAlbumsList = userAlbumsList.filterNot(_ == id) //delete album from users album list
+        user.get.albumList = user.get.albumList.filterNot(_ == id) //delete album from users album list
         RestApi.albumList = RestApi.albumList.filterNot(_.id == id) //delete album from albumList
         return true
       }
