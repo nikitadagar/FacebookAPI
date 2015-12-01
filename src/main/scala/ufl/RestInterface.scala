@@ -271,6 +271,18 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
           }
         }
       }
+    } ~
+    pathPrefix("AllUsers") {
+      pathEnd {
+        get { requestContext =>
+          val responder = createResponder(requestContext)
+          var userIdList: Vector[String] = Vector[String]()
+          for(userObject: UserNode <- RestApi.userList) {
+            userIdList = userIdList :+ userObject.id
+          }
+          responder ! userIdList
+        }
+      }
     }
 
   private def createResponder(requestContext:RequestContext) = {

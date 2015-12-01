@@ -46,43 +46,70 @@ class UserActor(isHeavy:Boolean) extends Actor {
 
   def receive = {
     case `execute` => {
-      createUser
-      getUser
+      val newUserId: String = createUser
+
+      createPost(newUserId)
+      createPost(newUserId)
+      getAllPosts(newUserId)
     }
   }
 
-  def createUser = {
+  def createUser: String = {
     val pipeline = sendReceive ~> unmarshal[String]
     var user: User = new User(self.path.name + "@actors.com", "chotu", "baby", "B")
     val responseFuture = pipeline(Post("http://localhost:5000/user", user))
     val result = Await.result(responseFuture, userTimeout)
     id = result.substring(result.indexOf(":") + 1).trim()
-    println("new user has id: " + id)
+    println("[CLIENT] new user has id: " + id)
+    return id
   }
 
-  def getUser = {
+  def getUser(userId:String): UserResponse = {
     val pipeline = sendReceive ~> unmarshal[UserResponse]
-    val responseFuture = pipeline(Get("http://localhost:5000/user/1"))
+    val responseFuture = pipeline(Get("http://localhost:5000/user/" + userId))
     val result: UserResponse = Await.result(responseFuture, userTimeout)
-    println("Get User " + result.email)
+    println("[CLIENT] Get User " + result.email)
+    return result
   }
 
-  def createPost = {
+  def getRandomFriend = {
+    // val pipeline = sendReceive ~> unmarshal[Vector[String]]
+    // val responseFuture = pipeline(Get("http://localhost:5000/AllUsers/"))
+    // val result: Vector[String] = Await.result(responseFuture, userTimeout)
+
+  }
+
+  def createPost(userId: String) = {
     val pipeline = sendReceive ~> unmarshal[String]
-    var fbpost: FBPost = new FBPost(id, "my name is " + self.path.name + " and I'm so cool.")
-    println("creating new fbpost")
+    var fbpost: FBPost = new FBPost(userId, "my name is " + self.path.name + " and I'm so cool.")
+    println("[CLIENT] creating new fbpost")
     val responseFuture = pipeline(Post("http://localhost:5000/post", fbpost))
     val result = Await.result(responseFuture, userTimeout)
   }
 
-  def getAllPosts = {
-    val pipelineUser = sendReceive ~> unmarshal[UserResponse]
-    val pipelinePosts = sendReceive ~> unmarshal[PostResponse]
-    val UserResponseFuture = pipelineUser(Get("http://localhost:5000/user/1"))
+  def getAllPosts(userId: String) = {
+    val userResponse: UserResponse = getUser(userId)
+    val allPostsIds: Vector[String] = userResponse.posts
+    var pipeline = sendReceive ~> unmarshal[PostResponse]
 
-    UserResponseFuture onComplete {
-      case Success(UserResponse(id, email, first_name, last_name, gender, posts, albums, friends)) =>
-
+    for(id <- allPostsIds) {
+      var responseFuture = pipeline(Get("http://localhost:5000/post/" + id))
+      var result: PostResponse = Await.result(responseFuture, userTimeout)
+      println("[CLIENT] Post: " + result.content)
     }
+  }
+
+  def getAllFriendsPost(userId: String) = {
+    val userResponse: UserResponse = getUser(userId)
+    val allFriendsIds: Vector[String] = userResponse.friends
+    var pipeline = sendReceive ~> unmarshal[PostResponse]
+
+    for(friendId <- allFriendsIds) {
+      getAllPosts(friendId)
+    }
+  }
+
+  def addFriend(ownerId:String, friendId:String) {
+
   }
 }
