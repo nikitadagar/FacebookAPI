@@ -13,6 +13,7 @@ import spray.can.Http
 import java.nio.file.{Files, Paths}
 import scala.concurrent._
 import duration._
+import java.util.Random
 // import scala.concurrent.ExecutionContext.Implicits.global
 case object execute
 case object init
@@ -53,8 +54,9 @@ class UserActor(isHeavy:Boolean) extends Actor {
       createPost(newUserId)
       getAllPosts(newUserId)
       createAlbum
-      uploadPhoto("1", "2")
-      getPhoto("3")
+      uploadPhoto(newUserId)
+      uploadPhoto(newUserId)
+      getAllAlbums(newUserId)
     }
   }
 
@@ -116,9 +118,12 @@ class UserActor(isHeavy:Boolean) extends Actor {
   def addFriend(ownerId:String, friendId:String) {
 
   }
-  def uploadPhoto(userId:String, albumId:String) = {
-  	
-  	println("[CLIENT] Posting photo with album ID " + albumId)
+  def uploadPhoto(userId:String) = {
+
+  	val user = getUser(userId)
+  	val rand = new Random(System.currentTimeMillis());
+	val random_index = rand.nextInt(user.albums.length);
+	val albumId = user.albums(random_index);
   	//converting photo to a byte array
   	var photoArray: Array[Byte] = Files.readAllBytes(Paths.get("img/download.jpeg"))
   	// TODO: change creator ID
@@ -130,11 +135,12 @@ class UserActor(isHeavy:Boolean) extends Actor {
   	println("[CLIENT] Photo " + result)
   }
 
-  def getPhoto(id: String) = {
+  def getPhoto(id: String) : PhotoResponse = {
   	val pipeline = sendReceive ~> unmarshal[PhotoResponse]
     val responseFuture = pipeline(Get("http://localhost:5000/photo/" + id))
     val result = Await.result(responseFuture, userTimeout)
     println("[CLIENT] Photo received with id " + result.id)
+    result
   }
 
   def createAlbum = {
@@ -147,7 +153,20 @@ class UserActor(isHeavy:Boolean) extends Actor {
   	println("[CLIENT] Album " + result)
   }
 
-  def getAllAlbums() = {
-  	val albumsList = 
+  def getAlbum (albumId:String) : AlbumResponse = {
+  	val pipeline = sendReceive ~> unmarshal[AlbumResponse]
+    val responseFuture = pipeline(Get("http://localhost:5000/album/" + albumId))
+    val result = Await.result(responseFuture, userTimeout)
+    println("[CLIENT] Album received with id " + result.id)
+    result
+  }
+
+  def getAllAlbums(userId:String) = {
+  	val user = getUser(userId)
+  	val albums = user.albums
+  	for(id <- albums) {
+  		val album = getAlbum(id)
+  		println("[CLIENT] Album id :" + id + "has photos(ids) : " + album.photos) 
+  	}
   }
 }
