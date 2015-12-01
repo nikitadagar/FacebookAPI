@@ -40,7 +40,7 @@ class Client extends Actor {
 
 class UserActor(isHeavy:Boolean) extends Actor {
   val system = ActorSystem("ClientSystem")
-  val userTimeout = 2 seconds
+  val userTimeout = 10 seconds
   import system.dispatcher
   import ufl.FacebookAPI._
   var id:String = _
@@ -49,6 +49,9 @@ class UserActor(isHeavy:Boolean) extends Actor {
     case `execute` => {
       createUser
       getUser
+      createAlbum
+      uploadPhoto("1", "2")
+      getPhoto("3")
     }
   }
 
@@ -87,36 +90,39 @@ class UserActor(isHeavy:Boolean) extends Actor {
     }
   }
 
-  def uploadPhoto = {
-  	println("CLIENT : Posting photo")
+  def uploadPhoto(userId:String, albumId:String) = {
   	
+  	println("[CLIENT] Posting photo with album ID " + albumId)
   	//converting photo to a byte array
   	var photoArray: Array[Byte] = Files.readAllBytes(Paths.get("img/download.jpeg"))
-
   	// TODO: change creator ID
-  	var photo:Photo = new Photo("Caption", "2", "1", photoArray)
+  	var photo:Photo = new Photo("Caption", albumId, userId, photoArray)
 
   	val pipeline = sendReceive ~> unmarshal[String]
   	val responseFuture = pipeline(Post("http://localhost:5000/photo", photo))
-  	val result = Await.result(responseFuture, 5 seconds)
-  	println(result)
-
+  	val result = Await.result(responseFuture, userTimeout)
+  	println("[CLIENT] Photo " + result)
   }
 
   def getPhoto(id: String) = {
-  	
+  	val pipeline = sendReceive ~> unmarshal[PhotoResponse]
+    val responseFuture = pipeline(Get("http://localhost:5000/photo/" + id))
+    val result = Await.result(responseFuture, userTimeout)
+    println("[CLIENT] Photo received with id " + result.id)
   }
 
   def createAlbum = {
-  	println("creating album")
-
   	// TODO: change creator ID
   	var album:Album = new Album("album name", "caption of album", "1")
 
   	val pipeline = sendReceive ~> unmarshal[String]
   	val responseFuture = pipeline(Post("http://localhost:5000/album", album))
-  	val result = Await.result(responseFuture, 3 seconds)
-  	println(result)
+  	val result = Await.result(responseFuture, userTimeout)
+  	println("[CLIENT] Album " + result)
+  }
+
+  def getAllAlbums() = {
+  	val albumsList = 
   }
 
 }
