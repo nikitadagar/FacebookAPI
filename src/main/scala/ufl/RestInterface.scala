@@ -174,7 +174,6 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
                 val photoNode: PhotoNode = new PhotoNode(newPhotoId, photo.caption, photo.albumId, photo.creatorId, photo.photo)
                 RestApi.photoList = RestApi.photoList :+ photoNode
                 resultAlbum.get.photos = resultAlbum.get.photos :+ photoNode.id
-                println("Created new photo with id: " + photoNode.id + " for Album id " + resultAlbum.get.id)
                 responder ! NodeCreated(newPhotoId)
               }
             }
@@ -183,7 +182,6 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
       } ~
       path(Segment) { id =>
         delete { requestContext =>
-          println("delete photo " + id)
           val responder = createResponder(requestContext)
           var resultPhoto: Option[PhotoNode] = RestApi.photoList.find(_.id == id)
           if(resultPhoto.isEmpty) {
@@ -194,7 +192,6 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
           }
         } ~
         get { requestContext =>
-          println("get photo " + id)
           var resultPhoto: Option[PhotoNode] = RestApi.photoList.find(_.id == id)
           val responder = createResponder(requestContext)
           resultPhoto.map(responder ! _.photoResponse())
@@ -215,7 +212,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
               val albumNode: AlbumNode = new AlbumNode(newAlbumId, album.name, album.caption, 
               album.creatorId, Calendar.getInstance().getTime().toString)
               RestApi.albumList = RestApi.albumList :+ albumNode
-              println("Created new album by: " + album.creatorId + ", id:" + newAlbumId)
+              resultUser.get.albumList = resultUser.get.albumList :+ newAlbumId
               responder ! NodeCreated(newAlbumId)
             }
           }
@@ -223,12 +220,10 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
       } ~
       path(Segment) {  id =>
         delete { requestContext =>
-          println("delete album " + id)
           val responder = createResponder(requestContext)
             responder ! AlbumDeleted
         } ~
         get { requestContext =>
-          println("get album " + id)
           var resultAlbum: Option[AlbumNode] = RestApi.albumList.find(_.id == id)
           val responder = createResponder(requestContext)
           resultAlbum.map(responder ! _.albumResponse())
@@ -390,6 +385,14 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
       killYourself
 
     case response: UserResponse =>
+      requestContext.complete(StatusCodes.OK, response)
+      killYourself
+
+    case response: PhotoResponse =>
+      requestContext.complete(StatusCodes.OK, response)
+      killYourself
+
+    case response: AlbumResponse =>
       requestContext.complete(StatusCodes.OK, response)
       killYourself
 
