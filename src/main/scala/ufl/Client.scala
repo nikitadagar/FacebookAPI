@@ -6,15 +6,15 @@ import ufl.FacebookAPI._
 import spray.client.pipelining._
 import spray.httpx.SprayJsonSupport._
 import spray.http._
+import spray.routing._
 import spray.json._
 import akka.io.IO
 import spray.can.Http
+import scala.concurrent._
+import duration._
 // import scala.concurrent.ExecutionContext.Implicits.global
-
-case object postUser
-case object postPost
-case object getUser
 case object execute
+case object init
 case class startClient(numOfUsers:Int, heavyUsers:Int)
 
 class Client extends Actor {
@@ -23,16 +23,15 @@ class Client extends Actor {
       var heavyUsers = heavy
       val actorSystem = ActorSystem("user-system")
       //todo percentages
-      for(userNumber <- 0 to numOfUsers) {
-        heavyUsers = heavyUsers - 1
+      for(userNumber <- 0 to numOfUsers - 1) {
         if(heavyUsers > 0) {
-          val user = actorSystem.actorOf(Props(new UserActor(true)), userNumber)  
+          val user = actorSystem.actorOf(Props(new UserActor(true)), "User" + userNumber)  
           user ! execute
         } else {
-          val user = actorSystem.actorOf(Props(new UserActor(false)), userNumber)
+          val user = actorSystem.actorOf(Props(new UserActor(false)), "User" + userNumber)
           user ! execute
         }
-        
+        heavyUsers = heavyUsers - 1
       }
     }
   }  
@@ -40,38 +39,50 @@ class Client extends Actor {
 
 class UserActor(isHeavy:Boolean) extends Actor {
   val system = ActorSystem("ClientSystem")
+  val userTimeout = 2 seconds
   import system.dispatcher
   import ufl.FacebookAPI._
   var id:String = _
-  val pipeline2 = sendReceive ~> unmarshal[String]
-  val pipeline1 = sendReceive ~> unmarshal[UserResponse]
-
-  createUser
 
   def receive = {
-
     case `execute` => {
-
+      createUser
+      getUser
     }
   }
 
   def createUser = {
-    var user: User = new User("nikita@babies.com", "chotu", "baby", "B")
-    println("sent post")
-    val responseFuture = pipeline2(Post("http://localhost:5000/user", user))
-    responseFuture onComplete {
-      case Success(result) =>
-        println(result)
-    }
+    val pipeline = sendReceive ~> unmarshal[String]
+    var user: User = new User(self.path.name + "@actors.com", "chotu", "baby", "B")
+    val responseFuture = pipeline(Post("http://localhost:5000/user", user))
+    val result = Await.result(responseFuture, userTimeout)
+    id = result.substring(result.indexOf(":") + 1).trim()
+    println("new user has id: " + id)
   }
 
   def getUser = {
-    println("get user")
-    val responseFuture1 = pipeline1(Get("http://localhost:5000/user/1"))
+    val pipeline = sendReceive ~> unmarshal[UserResponse]
+    val responseFuture = pipeline(Get("http://localhost:5000/user/1"))
+    val result: UserResponse = Await.result(responseFuture, userTimeout)
+    println("Get User " + result.email)
+  }
 
-    responseFuture1 onComplete {
+  def createPost = {
+    val pipeline = sendReceive ~> unmarshal[String]
+    var fbpost: FBPost = new FBPost(id, "my name is " + self.path.name + " and I'm so cool.")
+    println("creating new fbpost")
+    val responseFuture = pipeline(Post("http://localhost:5000/post", fbpost))
+    val result = Await.result(responseFuture, userTimeout)
+  }
+
+  def getAllPosts = {
+    val pipelineUser = sendReceive ~> unmarshal[UserResponse]
+    val pipelinePosts = sendReceive ~> unmarshal[PostResponse]
+    val UserResponseFuture = pipelineUser(Get("http://localhost:5000/user/1"))
+
+    UserResponseFuture onComplete {
       case Success(UserResponse(id, email, first_name, last_name, gender, posts, albums, friends)) =>
-        println(email)
+
     }
   }
 }
