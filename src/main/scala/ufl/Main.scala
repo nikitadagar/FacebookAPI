@@ -29,7 +29,7 @@ object Main extends App {
       case Http.Bound(address) =>
         println(s"REST interface bound to $address")
         Thread.sleep(2000)
-        client ! startClient(1,1)
+        client ! startClient(100)
       case Http.CommandFailed(cmd) =>
         println("REST interface could not bind to " +
           s"$host:$port, ${cmd.failureMessage}")
