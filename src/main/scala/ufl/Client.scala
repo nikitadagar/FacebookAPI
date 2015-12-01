@@ -13,6 +13,7 @@ import spray.can.Http
 import java.nio.file.{Files, Paths}
 import scala.concurrent._
 import duration._
+import scala.util.Random
 // import scala.concurrent.ExecutionContext.Implicits.global
 case object execute
 case object init
@@ -43,24 +44,29 @@ class UserActor(isHeavy:Boolean) extends Actor {
   val userTimeout = 10 seconds
   import system.dispatcher
   import ufl.FacebookAPI._
-  var id:String = _
 
   def receive = {
     case `execute` => {
-      val newUserId: String = createUser
 
-      createPost(newUserId)
-      createPost(newUserId)
-      getAllPosts(newUserId)
-      createAlbum
-      uploadPhoto("1", "2")
-      getPhoto("3")
+      for (i <- 0 to 10) {
+
+      }
+      val newUserId: String = createUser("1")
+      createUser("2")
+      createUser("3")
+      addRandomFriend(newUserId)
+      // createPost(newUserId)
+      // createPost(newUserId)
+      // getAllPosts(newUserId)
+      // createAlbum
+      // uploadPhoto("1", "2")
+      // getPhoto("3")
     }
   }
 
   def createUser: String = {
     val pipeline = sendReceive ~> unmarshal[String]
-    var user: User = new User(self.path.name + "@actors.com", "chotu", "baby", "B")
+    var user: User = new User(self.path.name + "@actors.com", "Actor", "Scala", "M")
     val responseFuture = pipeline(Post("http://localhost:5000/user", user))
     val result = Await.result(responseFuture, userTimeout)
     id = result.substring(result.indexOf(":") + 1).trim()
@@ -76,11 +82,16 @@ class UserActor(isHeavy:Boolean) extends Actor {
     return result
   }
 
-  def getRandomFriend = {
-    // val pipeline = sendReceive ~> unmarshal[Vector[String]]
-    // val responseFuture = pipeline(Get("http://localhost:5000/AllUsers/"))
-    // val result: Vector[String] = Await.result(responseFuture, userTimeout)
-
+  def getRandomUser: String = {
+    val pipeline = sendReceive ~> unmarshal[String]
+    val responseFuture = pipeline(Get("http://localhost:5000/AllUsers"))
+    val result = Await.result(responseFuture, userTimeout)
+    var allUserIds: Array[String] = result.substring(1, result.length -1).split(",")
+    val rand = new Random(System.currentTimeMillis());
+    val random_index = rand.nextInt(allUserIds.length);
+    var userId = allUserIds(random_index);
+    userId = userId.replace("\"","").trim()
+    return userId
   }
 
   def createPost(userId: String) = {
@@ -96,7 +107,7 @@ class UserActor(isHeavy:Boolean) extends Actor {
     val allPostsIds: Vector[String] = userResponse.posts
     var pipeline = sendReceive ~> unmarshal[PostResponse]
 
-    for(id <- allPostsIds) {
+    for(importd <- allPostsIds) {
       var responseFuture = pipeline(Get("http://localhost:5000/post/" + id))
       var result: PostResponse = Await.result(responseFuture, userTimeout)
       println("[CLIENT] Post: " + result.content)
@@ -113,9 +124,20 @@ class UserActor(isHeavy:Boolean) extends Actor {
     }
   }
 
-  def addFriend(ownerId:String, friendId:String) {
+  def addRandomFriend(ownerId:String) {
+    val pipeline = sendReceive ~> unmarshal[String]
+    
+    var randomFriend:String = getRandomUser
+    while(randomFriend.equals(ownerId)) {
+      randomFriend = getRandomUser //make sure I'm not trying to add myself as a friend :(  
+    }
 
+    var newFriend: FriendsList = new FriendsList(ownerId, randomFriend)
+    println("[CLIENT] adding " + randomFriend + " as a new friend for " + ownerId)
+    val responseFuture = pipeline(Post("http://localhost:5000/friendsList", newFriend))
+    val result = Await.result(responseFuture, userTimeout)
   }
+
   def uploadPhoto(userId:String, albumId:String) = {
   	
   	println("[CLIENT] Posting photo with album ID " + albumId)
@@ -148,6 +170,6 @@ class UserActor(isHeavy:Boolean) extends Actor {
   }
 
   def getAllAlbums() = {
-  	val albumsList = 
+  	// val albumsList = 
   }
 }
