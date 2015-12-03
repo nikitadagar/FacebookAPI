@@ -35,22 +35,27 @@ Cache-Control: no-cache
 
 4. **POST Page** : http://localhost:5000/page        (details sent in a JSON along with the request)
 5. **GET Page** : http://localhost:5000/page/id
-6. **DELETE Page** : http://localhost:5000/page/id
+6. **DELETE Page** : http://localhost:5000/page/id    
+
 
 7. **POST Post** : http://localhost:5000/post        (details sent in a JSON along with the request)
 8. **GET Post** : http://localhost:5000/post/id
-9. **DELETE Post** : http://localhost:5000/post/id
+9. **DELETE Post** : http://localhost:5000/post/id    
+
 
 10. **POST User** : http://localhost:5000/user        (details sent in a JSON along with the request)
 11. **GET User** : http://localhost:5000/user/id
-12. **DELETE User** : http://localhost:5000/user/id
+12. **DELETE User** : http://localhost:5000/user/id    
+
 
 13. **POST Page** : http://localhost:5000/friendsList        (details sent in a JSON along with the request)
-14. **GET Page** : http://localhost:5000/friendsList/id
+14. **GET Page** : http://localhost:5000/friendsList/id  
+
 
 15. **POST Photo** : http://localhost:5000/photo        (details sent in a JSON along with the request)
 16. **GET Photo** : http://localhost:5000/photo/id
-17. **DELETE Photo** : http://localhost:5000/photo/id
+17. **DELETE Photo** : http://localhost:5000/photo/id  
+
 
 18. **POST Album** : http://localhost:5000/album        (details sent in a JSON along with the request)
 19. **GET Album** : http://localhost:5000/album/id
