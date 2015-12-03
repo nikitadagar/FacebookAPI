@@ -30,8 +30,8 @@ Host: localhost:5000
 Content-Type: application/json  
 Content-Length: 203  
 Cache-Control: no-cache  
-
-All other requests are illustrated below with only the URLs
+***
+  All other requests are illustrated below with only the URLs
 
 4. **POST Page** : http://localhost:5000/page        (details sent in a JSON along with the request)
 5. **GET Page** : http://localhost:5000/page/id
