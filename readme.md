@@ -10,30 +10,26 @@ For the server, we have implemented the POST, GET, and DELETE HTTP requests for 
 You can ping the server at localhost:5000 with the following requests:
 
 1. **POST User:**
-
-`POST /user HTTP/1.1`
-Host: localhost:5000
-Content-Type: application/json
-Content-Length: 203
-Cache-Control: no-cache
-
+`POST /user HTTP/1.1`  
+Host: localhost:5000  
+Content-Type: application/json  
+Content-Length: 203  
+Cache-Control: no-cache  
 Example JSON: {"email": "nikita@nikita.com", "firstname" : "Nikita", "lastname" : "Dagar", "gender" : "female"}
 
 2. **GET User:**
-
-`GET /user/1 HTTP/1.1`
-Host: localhost:5000
-Content-Type: application/json
-Content-Length: 203
-Cache-Control: no-cache
+`GET /user/1 HTTP/1.1`  
+Host: localhost:5000  
+Content-Type: application/json  
+Content-Length: 203  
+Cache-Control: no-cache  
 
 3. **Delete User:**
-
-`DELETE /user/1 HTTP/1.1`
-Host: localhost:5000
-Content-Type: application/json
-Content-Length: 203
-Cache-Control: no-cache
+`DELETE /user/1 HTTP/1.1`  
+Host: localhost:5000  
+Content-Type: application/json  
+Content-Length: 203  
+Cache-Control: no-cache  
 
 All other requests are illustrated below with only the URLs
 
