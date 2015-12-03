@@ -1,13 +1,13 @@
-Distributed Operating Systems 
-Project 4.1 - Facebook API 
+## Distributed Operating Systems 
+### Project 4.1 - Facebook API 
 
-Members:
-Alok Sharma (40838147)
-Nikita Dagar (10634310)
+**Members:**
+- Alok Sharma (40838147)
+- Nikita Dagar (10634310)
 
-—————————————————————
-Server
-—————————————————————
+*—————————————————————*
+###Server
+*—————————————————————*
 
 For the server, we have implemented the POST, GET, and DELETE HTTP requests for Page, Post, User Profile, Friends List, Photos and Albums.
 You can ping the server at localhost:5000 with the following requests:
