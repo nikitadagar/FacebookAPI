@@ -126,14 +126,15 @@ class UserActor extends Actor {
     val pipeline = sendReceive ~> unmarshal[String]
     var postContent = "my name is " + self.path.name + " and I'm so cool."
 
-    var keyMap = getPublicKeyMap(shareWith)
-    if(keyMap.length != 0) {
-      var key: SecretKeySpec = getSymKey()
-      var postContent: String = encryptSym(postContent, key)
+    var key: SecretKeySpec = getSymKey()
+    var keyMap = getPublicKeyMap(shareWith, key)
+    if(keyMap.size > 0) {
+      postContent = encryptSym(postContent, key)
     }
     var fbpost: FBPost = new FBPost(userId, postContent, keyMap)
     val responseFuture = pipeline(Post("http://localhost:5000/post", fbpost))
     val result = Await.result(responseFuture, userTimeout)
+
     println("[CLIENT] creating new fbpost")
   }
 
@@ -321,14 +322,14 @@ class UserActor extends Actor {
     return key
   }
 
-  def getPublicKeyMap(shareWith: Array[String]): Map[String, String] = {
+  def getPublicKeyMap(shareWith: Array[String], keyToEncrypt: SecretKeySpec): Map[String, String] = {
     var keyMap = Map[String, String]()
     if(shareWith.length == 0) {
       return keyMap
     } else {
       for(userId <- shareWith) {
         var friendUser:UserResponse = getUser(userId)
-        var encryptedKey:String = encryptAsym(secretKeyToString(key), stringToPublicKey(friendUser.publicKey))
+        var encryptedKey:String = encryptAsym(secretKeyToString(keyToEncrypt), stringToPublicKey(friendUser.publicKey))
         keyMap += (friendUser.id -> encryptedKey)
       }
       return keyMap

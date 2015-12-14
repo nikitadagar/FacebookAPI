@@ -104,12 +104,15 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
           else
             responder ! NodeNotFound("Post")
         } ~
-        get { requestContext =>
-          println("get post " + id)
+        get{
+          parameter('who.as[String] ?) { who =>
+          requestContext =>
+          println("get post " + who)
           var resultPost: Option[PostNode] = RestApi.postList.find(_.id == id)
           val responder = createResponder(requestContext)
           resultPost.map(responder ! _.postResponse())
             .getOrElse(responder ! NodeNotFound("Post"))
+          }
         }
       }
     } ~
