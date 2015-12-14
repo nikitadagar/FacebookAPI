@@ -1,5 +1,7 @@
 package ufl
 
+import scala.collection.immutable.Map
+
 object FacebookAPI {
   
   import spray.json._
@@ -11,14 +13,14 @@ object FacebookAPI {
   case object PageDeleted
   case class PageResponse(id: String, name: String, about: String)
   
-  case class FBPost(userId: String, content: String)
+  case class FBPost(userId: String, content: String, keyMap: Map[String, String])
   case object PostDeleted
   case class PostResponse(id: String, userId: String, content: String)
 
-  case class User(email: String, firstname:String, lastname:String, gender:String)
+  case class User(email: String, firstname:String, lastname:String, gender:String, publicKey:String)
   case object UserAlreadyExists
   case object UserDeleted
-  case class UserResponse(id:String, email: String, first_name:String, last_name:String, gender:String, posts:Vector[String], albums:Vector[String], friends:Vector[String])
+  case class UserResponse(id:String, publicKey:String, email: String, first_name:String, last_name:String, gender:String, posts:Vector[String], albums:Vector[String], friends:Vector[String])
 
   case class Photo(caption:String, albumId:String, creatorId:String, photo:Array[Byte])
   case object PhotoDeleted
@@ -37,11 +39,11 @@ object FacebookAPI {
   }
 
   object FBPost extends DefaultJsonProtocol {
-    implicit val format = jsonFormat2(FBPost.apply)
+    implicit val format = jsonFormat3(FBPost.apply)
   }
 
   object User extends DefaultJsonProtocol {
-    implicit val format = jsonFormat4(User.apply)
+    implicit val format = jsonFormat5(User.apply)
   }
 
   object Photo extends DefaultJsonProtocol {
@@ -65,7 +67,7 @@ object FacebookAPI {
   }
 
   object UserResponse extends DefaultJsonProtocol {
-    implicit val format = jsonFormat8(UserResponse.apply)
+    implicit val format = jsonFormat9(UserResponse.apply)
   }
 
   object PhotoResponse extends DefaultJsonProtocol {

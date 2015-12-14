@@ -14,6 +14,12 @@ import java.nio.file.{Files, Paths}
 import scala.concurrent._
 import duration._
 import scala.util.Random
+import java.security._
+import javax.crypto._
+import javax.crypto.spec.SecretKeySpec
+import java.security.spec.X509EncodedKeySpec
+import java.util.Base64
+import scala.collection.immutable.Map
 // import scala.concurrent.ExecutionContext.Implicits.global
 case object execute
 case object init
@@ -33,30 +39,48 @@ class Client extends Actor {
 }
 
 class UserActor extends Actor {
-  val system = ActorSystem("ClientSystem")
-  val userTimeout = 4 seconds
   import system.dispatcher
   import ufl.FacebookAPI._
 
+  val system = ActorSystem("ClientSystem")
+  val userTimeout = 4 seconds
+
+  val keyGen = KeyPairGenerator.getInstance("RSA")
+  keyGen.initialize(1024)
+  val keypair = keyGen.genKeyPair()
+  val privateKey: PrivateKey = keypair.getPrivate()
+  val publicKey: PublicKey = keypair.getPublic();
+
   def receive = {
     case `execute` => {
-      // for (i <- 0 to 10) {
+      var test = "Alok Sharma."
+      // var encrypted: String = encrypt(test, privateKey)
+      // println(encrypted)
+      // println(decrypt(encrypted, publicKey))
 
-      // }
-      val newUserId: String = createUser
+      var c: Cipher = Cipher.getInstance("AES")
+      val symkey: SecretKeySpec = getSymKey()
+      c.init(Cipher.ENCRYPT_MODE, symkey)
+      var encryptedData: Array[Byte] = c.doFinal(test.getBytes())
 
-      createPost(newUserId) //create a few new posts
-      createPost(newUserId)
-      getAllPosts(newUserId) //view all your own posts
-      createAlbum //create a new album
-      uploadPhoto(newUserId) //upload a photo to the album
-      addRandomFriend(newUserId) //add a few friends
-      addRandomFriend(newUserId)
-      addRandomFriend(newUserId)
-      getAllFriendsPost(newUserId) //view your friends posts
-      uploadPhoto(newUserId) //upload another photo
-      getAllAlbums(newUserId)
-      println("done")
+      c.init(Cipher.DECRYPT_MODE, symkey)
+      var data: Array[Byte] = c.doFinal(encryptedData)
+      println(new String(data))
+
+      // val newUserId: String = createUser
+
+      // createPost(newUserId) //create a few new posts
+      // createPost(newUserId)
+      // getAllPosts(newUserId) //view all your own posts
+      // createAlbum //create a new album
+      // uploadPhoto(newUserId) //upload a photo to the album
+      // addRandomFriend(newUserId) //add a few friends
+      // addRandomFriend(newUserId)
+      // addRandomFriend(newUserId)
+      // getAllFriendsPost(newUserId) //view your friends posts
+      // uploadPhoto(newUserId) //upload another photo
+      // getAllAlbums(newUserId)
+      // println("done")
 
       self ! PoisonPill      
     }
@@ -64,7 +88,7 @@ class UserActor extends Actor {
 
   def createUser: String = {
     val pipeline = sendReceive ~> unmarshal[String]
-    var user: User = new User(self.path.name + "@actors.com", "Actor", "Scala", "M")
+    var user: User = new User(self.path.name + "@actors.com", "Actor", "Scala", "M", publicKeyToString(publicKey))
     val responseFuture = pipeline(Post("http://localhost:5000/user", user))
     val result = Await.result(responseFuture, userTimeout)
     var id = result.substring(result.indexOf(":") + 1).trim()
@@ -98,15 +122,23 @@ class UserActor extends Actor {
     }
   }
 
-  def createPost(userId: String) = {
+  def createPost(userId: String, shareWith: Array[String]) = {
     val pipeline = sendReceive ~> unmarshal[String]
-    var fbpost: FBPost = new FBPost(userId, "my name is " + self.path.name + " and I'm so cool.")
-    println("[CLIENT] creating new fbpost")
+    var postContent = "my name is " + self.path.name + " and I'm so cool."
+
+    var keyMap = getPublicKeyMap(shareWith)
+    if(keyMap.length != 0) {
+      var key: SecretKeySpec = getSymKey()
+      var postContent: String = encryptSym(postContent, key)
+    }
+    var fbpost: FBPost = new FBPost(userId, postContent, keyMap)
     val responseFuture = pipeline(Post("http://localhost:5000/post", fbpost))
     val result = Await.result(responseFuture, userTimeout)
+    println("[CLIENT] creating new fbpost")
   }
 
   def getAllPosts(userId: String) = {
+    //if userId not same as my own id, then get that users public key
     val userResponse: UserResponse = getUser(userId)
     val allPostsIds: Vector[String] = userResponse.posts
     var pipeline = sendReceive ~> unmarshal[PostResponse]
@@ -114,6 +146,11 @@ class UserActor extends Actor {
     for(id <- allPostsIds) {
       var responseFuture = pipeline(Get("http://localhost:5000/post/" + id))
       var result: PostResponse = Await.result(responseFuture, userTimeout)
+      //from result, iterate over keyMap, and find the key for your id.
+
+      //decrypt with your private key, and get the AES key.
+
+      //decrypt content with AES key.
       println("[CLIENT] Post: " + result.content)
     }
   }
@@ -210,6 +247,92 @@ class UserActor extends Actor {
     val result = Await.result(responseFuture, userTimeout)
     println("[CLIENT] Album deleted " + result)
     result
+  }
+
+  //Asymmetrically Encrypts input, and converts encrypted byte array to base64 encoded string.
+  def encryptAsym(text: String, key: PublicKey): String = {
+    val cipher = Cipher.getInstance("RSA") //can be RSA, DES, AES
+    cipher.init(Cipher.ENCRYPT_MODE, key)
+    val encryptedBytes: Array[Byte] = cipher.doFinal(text.getBytes())
+    val encryptedString: String = Base64.getEncoder().encodeToString(encryptedBytes)
+    encryptedString
+  }
+
+  //Converts base64 encoded input to a byte array first, and then asymmetrically decrypts.
+  def decryptAsym(text: String, key: PrivateKey): String = {
+    val encryptedBytes: Array[Byte] = Base64.getDecoder().decode(text);
+    val cipher = Cipher.getInstance("RSA")
+    cipher.init(Cipher.DECRYPT_MODE, key)
+    var textBytes:Array[Byte] = cipher.doFinal(encryptedBytes)
+    new String(textBytes)
+  }
+
+  //Generates a new random AES key for symmetric encryption.
+  def getSymKey(): SecretKeySpec = {
+    val random: SecureRandom  = new SecureRandom()
+    val randomBytes = new Array[Byte](16)
+    random.nextBytes(randomBytes)
+    val k: SecretKeySpec = new SecretKeySpec(randomBytes, "AES")
+    return k
+  }
+
+  //AES symmetric encryption
+  def encryptSym(text: String, symkey: SecretKeySpec): String = {
+    var c: Cipher = Cipher.getInstance("AES")
+    c.init(Cipher.ENCRYPT_MODE, symkey)
+    var encryptedBytes: Array[Byte] = c.doFinal(text.getBytes())
+    val encryptedString: String = Base64.getEncoder().encodeToString(encryptedBytes)
+    return encryptedString
+  }
+
+  //AES symmetric decryption
+  def decryptSym(text:String, symkey: SecretKeySpec): String = {
+    var c: Cipher = Cipher.getInstance("AES");
+    c.init(Cipher.DECRYPT_MODE, symkey);
+    var decryptedBytes: Array[Byte] = c.doFinal(text.getBytes());
+    val decryptedString: String = Base64.getEncoder().encodeToString(decryptedBytes)
+    return decryptedString
+  }
+
+  //Returns base64 encoded string of a symmetric key.
+  def secretKeyToString(symkey: SecretKeySpec): String = {
+    // get base64 encoded version of the key
+    val key:String = Base64.getEncoder().encodeToString(symkey.getEncoded());
+    return key
+  }
+
+  //Given a base64 encoded string of a SecretKeySpec, returns the original key
+  def stringToSecretKey(symkey: String): SecretKeySpec = {
+    val key:SecretKeySpec = new SecretKeySpec(symkey.getBytes(), 0, symkey.length, "AES"); 
+    return key
+  }
+
+  //Returns base64 encoded string of a public key
+  def publicKeyToString(publicKey: PublicKey): String = {
+    val key:String = Base64.getEncoder().encodeToString(publicKey.getEncoded());
+    return key
+  }
+
+  def stringToPublicKey(publicKey: String): PublicKey = {
+    var publicBytes: Array[Byte] = Base64.getDecoder().decode(publicKey);
+    val keySpec: X509EncodedKeySpec = new X509EncodedKeySpec(publicBytes);
+    val keyFactory: KeyFactory = KeyFactory.getInstance("RSA");
+    val key: PublicKey = keyFactory.generatePublic(keySpec);
+    return key
+  }
+
+  def getPublicKeyMap(shareWith: Array[String]): Map[String, String] = {
+    var keyMap = Map[String, String]()
+    if(shareWith.length == 0) {
+      return keyMap
+    } else {
+      for(userId <- shareWith) {
+        var friendUser:UserResponse = getUser(userId)
+        var encryptedKey:String = encryptAsym(secretKeyToString(key), stringToPublicKey(friendUser.publicKey))
+        keyMap += (friendUser.id -> encryptedKey)
+      }
+      return keyMap
+    }
   }
 
 }

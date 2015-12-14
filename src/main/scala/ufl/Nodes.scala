@@ -2,6 +2,7 @@ package ufl
 
 import Array._
 import ufl.FacebookAPI._
+import scala.collection.immutable.Map
 
 class PageNode(pageId:String, pageName:String, pageAbout:String)  {
     val id = pageId
@@ -14,10 +15,11 @@ class PageNode(pageId:String, pageName:String, pageAbout:String)  {
     }
 }
 
-class PostNode(postId:String, postUserId:String, postContent:String)  {
+class PostNode(postId:String, postUserId:String, postContent:String, keys: Map[String, String])  {
     val id = postId
     var creatorId = postUserId
     var content = postContent
+    var keyMap = keys
 
     def postResponse(): PostResponse = {
         val postResponse = new PostResponse(id, creatorId, content)
@@ -25,8 +27,10 @@ class PostNode(postId:String, postUserId:String, postContent:String)  {
     }
 }
 
-class UserNode(userId:String, userEmail:String, firstName:String, lastName:String, userGender:String) {
+class UserNode(userId:String, userEmail:String, firstName:String,
+    lastName:String, userGender:String, public_Key:String) {
     val id = userId
+    val publicKey = public_Key
     var email = userEmail
     var first_name = firstName
     var last_name = lastName
@@ -36,7 +40,7 @@ class UserNode(userId:String, userEmail:String, firstName:String, lastName:Strin
     var friendsList = Vector[String]()
 
     def userResponse(): UserResponse = {
-        val userResponse = new UserResponse(id, email, first_name, last_name
+        val userResponse = new UserResponse(id, publicKey, email, first_name, last_name
             , gender, postList, albumList, friendsList)
         userResponse
     }

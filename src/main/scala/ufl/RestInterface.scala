@@ -86,7 +86,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
             } else {
               //Valid user, create a new post.
               var newPostId = RestApi.getId
-              val postNode: PostNode = new PostNode(newPostId, resultUser.get.id, post.content)
+              val postNode: PostNode = new PostNode(newPostId, resultUser.get.id, post.content, post.keyMap)
               RestApi.postList = RestApi.postList :+ postNode
               resultUser.get.postList = resultUser.get.postList :+ postNode.id
               println("Created new post by: " + resultUser.get.id + ", id: " + postNode.id + ", posts: " + resultUser.get.postList.length)
@@ -124,7 +124,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
             } else {
               var newUserId = RestApi.getId
               val userNode: UserNode = new UserNode(newUserId, user.email, user.firstname, 
-                user.lastname, user.gender)
+                user.lastname, user.gender, user.publicKey)
               RestApi.userList = RestApi.userList :+ userNode
 
               println("Created new user with id: " + userNode.id)
