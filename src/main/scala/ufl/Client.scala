@@ -67,7 +67,7 @@ class UserActor extends Actor {
       var data: Array[Byte] = c.doFinal(encryptedData)
       println(new String(data))
 
-      // val newUserId: String = createUser
+      val newUserId: String = createUser
 
       // createPost(newUserId) //create a few new posts
       // createPost(newUserId)
@@ -80,7 +80,8 @@ class UserActor extends Actor {
       // getAllFriendsPost(newUserId) //view your friends posts
       // uploadPhoto(newUserId) //upload another photo
       // getAllAlbums(newUserId)
-      // println("done")
+      // getAlbumOfFriend(newUserId)
+      println("done")
 
       self ! PoisonPill      
     }
@@ -166,13 +167,41 @@ class UserActor extends Actor {
     }
   }
 
+  //gets all pictures of a random friend from given user's friends list
+  def getAlbumOfFriend(userId: String) = {
+    val userResponse: UserResponse = getUser(userId)
+    val allFriendsIds: Vector[String] = userResponse.friends
+    var pipeline = sendReceive ~> unmarshal[AlbumResponse]
+
+    if (allFriendsIds.size > 0) {
+      val friendId = (allFriendsIds(0)) + ""
+      val friend: UserResponse = getUser(friendId)
+      
+      if (friend.albums.length > 0) {
+        val album: AlbumResponse = getAlbum(friend.albums(0))
+        if (album.photos.length > 0){
+          for(photoId <- album.photos) {
+            getPhoto(photoId)
+          }
+        }
+        else {
+          println("[CLIENT] No photos in album : " + album.id)
+        }
+      }
+      else {println("[CLIENT] No Album found")}
+    }
+    else {
+      println("[CLIENT] No friends. Can't get Album")
+    }
+  }
+
   def addRandomFriend(ownerId:String) {
     val pipeline = sendReceive ~> unmarshal[String]
     
     var randomFriend:String = getRandomUser
     if(randomFriend.equals("forever alone")) {
       //you're all alone. wont add anyone
-      println("[CLIENT] youre the first user. Can't add any friend for now.")
+      println("[CLIENT] you're the first user. Can't add any friend for now.")
     } else {
       while(randomFriend.equals(ownerId)) {
         randomFriend = getRandomUser
