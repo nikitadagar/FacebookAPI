@@ -16,6 +16,7 @@ import duration._
 import scala.util.Random
 import java.security._
 import javax.crypto._
+import javax.crypto.SecretKey
 import javax.crypto.spec.SecretKeySpec
 import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
@@ -53,25 +54,18 @@ class UserActor extends Actor {
 
   def receive = {
     case `execute` => {
-      var test = "Alok Sharma."
-      // var encrypted: String = encrypt(test, privateKey)
-      // println(encrypted)
-      // println(decrypt(encrypted, publicKey))
 
-      var c: Cipher = Cipher.getInstance("AES")
-      val symkey: SecretKeySpec = getSymKey()
-      c.init(Cipher.ENCRYPT_MODE, symkey)
-      var encryptedData: Array[Byte] = c.doFinal(test.getBytes())
-
-      c.init(Cipher.DECRYPT_MODE, symkey)
-      var data: Array[Byte] = c.doFinal(encryptedData)
-      println(new String(data))
-
+      println(System.getProperty("java.version"))
+      // var key: SecretKey = getSymKey()
+      // var test: String = "alok sharma"
+      // var encryptedTest: String = encryptSym(test, key)
+      // var decryptedTest: String = decryptSym(encryptedTest, key)
+      // println(decryptedTest)
       // val newUserId: String = createUser
 
-      // createPost(newUserId) //create a few new posts
+      // createPost(newUserId, "allFriends") //create a few new posts
       // createPost(newUserId)
-      // getAllPosts(newUserId) //view all your own posts
+      // getAllPosts(newUserId, newUserId) //view all your own posts
       // createAlbum //create a new album
       // uploadPhoto(newUserId) //upload a photo to the album
       // addRandomFriend(newUserId) //add a few friends
@@ -122,12 +116,34 @@ class UserActor extends Actor {
     }
   }
 
-  def createPost(userId: String, shareWith: Array[String]) = {
+  def createPost(userId: String, shareWith: String) = {
     val pipeline = sendReceive ~> unmarshal[String]
     var postContent = "my name is " + self.path.name + " and I'm so cool."
+    var shareWithArray = Vector[String]()
+    if(shareWith.equals("public")) {
+      //leave the shareWithArray empty if public.
+    } else if(shareWith.equals("allFriends")) {
+      val userResponseAll = getUser(userId)
+      shareWithArray = userResponseAll.friends
+      shareWithArray = shareWithArray :+ userId
+    } else if(shareWith.equals("randomFriends")) {
+      val userResponse = getUser(userId)
+      var allFriends = userResponse.friends
+      
+      //get a random number between 0 to allFriends.length
+      val rand = new Random(System.currentTimeMillis());
+      val randomNumber = rand.nextInt(allFriends.length)
+      
+      //pick those many random friends, and add their ids to sharewith list
+      for(i <- 0 to randomNumber) {
+        var randomIndex = rand.nextInt(allFriends.length)
+        shareWithArray = shareWithArray :+ allFriends(randomIndex)
+      }
+      shareWithArray = shareWithArray :+ userId //add yourself to list of people authorized to view this post.
+    }
 
-    var key: SecretKeySpec = getSymKey()
-    var keyMap = getPublicKeyMap(shareWith, key)
+    var key: SecretKey = getSymKey()
+    var keyMap = getPublicKeyMap(shareWithArray, key)
     if(keyMap.size > 0) {
       postContent = encryptSym(postContent, key)
     }
@@ -138,31 +154,33 @@ class UserActor extends Actor {
     println("[CLIENT] creating new fbpost")
   }
 
-  def getAllPosts(userId: String) = {
+  def getAllPosts(userId: String, requesterId: String) = {
     //if userId not same as my own id, then get that users public key
     val userResponse: UserResponse = getUser(userId)
     val allPostsIds: Vector[String] = userResponse.posts
     var pipeline = sendReceive ~> unmarshal[PostResponse]
 
     for(id <- allPostsIds) {
-      var responseFuture = pipeline(Get("http://localhost:5000/post/" + id))
+      var responseFuture = pipeline(Get("http://localhost:5000/post/" + id + "?requester=" + requesterId))
       var result: PostResponse = Await.result(responseFuture, userTimeout)
-      //from result, iterate over keyMap, and find the key for your id.
-
       //decrypt with your private key, and get the AES key.
+      val encryptedKey:String = result.encryptedKey
+      val aesKeyString:String = decryptAsym(encryptedKey, privateKey)
+      val aesKey:SecretKey = stringToSecretKey(aesKeyString)
 
       //decrypt content with AES key.
-      println("[CLIENT] Post: " + result.content)
+      val postContent = decryptSym(result.content, aesKey)
+      println("[CLIENT] Post: " + postContent)
     }
   }
 
-  def getAllFriendsPost(userId: String) = {
+  def getAllFriendsPost(userId: String, requesterId: String) = {
     val userResponse: UserResponse = getUser(userId)
     val allFriendsIds: Vector[String] = userResponse.friends
     var pipeline = sendReceive ~> unmarshal[PostResponse]
 
     for(friendId <- allFriendsIds) {
-      getAllPosts(friendId)
+      getAllPosts(friendId, requesterId)
     }
   }
 
@@ -269,17 +287,14 @@ class UserActor extends Actor {
   }
 
   //Generates a new random AES key for symmetric encryption.
-  def getSymKey(): SecretKeySpec = {
-    val random: SecureRandom  = new SecureRandom()
-    val randomBytes = new Array[Byte](16)
-    random.nextBytes(randomBytes)
-    val k: SecretKeySpec = new SecretKeySpec(randomBytes, "AES")
-    return k
+  def getSymKey(): SecretKey = {
+    var secretKey: SecretKey = KeyGenerator.getInstance("AES").generateKey();
+    return secretKey
   }
 
   //AES symmetric encryption
-  def encryptSym(text: String, symkey: SecretKeySpec): String = {
-    var c: Cipher = Cipher.getInstance("AES")
+  def encryptSym(text: String, symkey: SecretKey): String = {
+    var c: Cipher = Cipher.getInstance("AES/ECB/PKCS5")
     c.init(Cipher.ENCRYPT_MODE, symkey)
     var encryptedBytes: Array[Byte] = c.doFinal(text.getBytes())
     val encryptedString: String = Base64.getEncoder().encodeToString(encryptedBytes)
@@ -287,8 +302,8 @@ class UserActor extends Actor {
   }
 
   //AES symmetric decryption
-  def decryptSym(text:String, symkey: SecretKeySpec): String = {
-    var c: Cipher = Cipher.getInstance("AES");
+  def decryptSym(text:String, symkey: SecretKey): String = {
+    var c: Cipher = Cipher.getInstance("AES/ECB/PKCS5");
     c.init(Cipher.DECRYPT_MODE, symkey);
     var decryptedBytes: Array[Byte] = c.doFinal(text.getBytes());
     val decryptedString: String = Base64.getEncoder().encodeToString(decryptedBytes)
@@ -296,15 +311,16 @@ class UserActor extends Actor {
   }
 
   //Returns base64 encoded string of a symmetric key.
-  def secretKeyToString(symkey: SecretKeySpec): String = {
+  def secretKeyToString(symkey: SecretKey): String = {
     // get base64 encoded version of the key
     val key:String = Base64.getEncoder().encodeToString(symkey.getEncoded());
     return key
   }
 
-  //Given a base64 encoded string of a SecretKeySpec, returns the original key
-  def stringToSecretKey(symkey: String): SecretKeySpec = {
-    val key:SecretKeySpec = new SecretKeySpec(symkey.getBytes(), 0, symkey.length, "AES"); 
+  //Given a base64 encoded string of a SecretKey, returns the original key
+  def stringToSecretKey(symkey: String): SecretKey = {
+    val decodedKey: Array[Byte] = Base64.getDecoder().decode(symkey)
+    val key:SecretKey = new SecretKeySpec(decodedKey, 0, decodedKey.length, "AES")
     return key
   }
 
@@ -322,16 +338,17 @@ class UserActor extends Actor {
     return key
   }
 
-  def getPublicKeyMap(shareWith: Array[String], keyToEncrypt: SecretKeySpec): Map[String, String] = {
-    var keyMap = Map[String, String]()
+  def getPublicKeyMap(shareWith: Vector[String], keyToEncrypt: SecretKey): Map[String, String] = {
+    var keyMap:Map[String, String] = Map[String, String]()
     if(shareWith.length == 0) {
       return keyMap
     } else {
       for(userId <- shareWith) {
         var friendUser:UserResponse = getUser(userId)
         var encryptedKey:String = encryptAsym(secretKeyToString(keyToEncrypt), stringToPublicKey(friendUser.publicKey))
-        keyMap += (friendUser.id -> encryptedKey)
+        keyMap += (userId -> encryptedKey)
       }
+      println("keymap: " + keyMap.size)
       return keyMap
     }
   }

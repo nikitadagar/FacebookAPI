@@ -105,12 +105,11 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
             responder ! NodeNotFound("Post")
         } ~
         get{
-          parameter('who.as[String] ?) { who =>
+          parameter('requester) { requesterId =>
           requestContext =>
-          println("get post " + who)
           var resultPost: Option[PostNode] = RestApi.postList.find(_.id == id)
           val responder = createResponder(requestContext)
-          resultPost.map(responder ! _.postResponse())
+          resultPost.map(responder ! _.postResponse(requesterId))
             .getOrElse(responder ! NodeNotFound("Post"))
           }
         }
@@ -385,7 +384,8 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
       requestContext.complete(StatusCodes.OK, response)
       killYourself
 
-    case response: PostResponse =>
+    case Left(response: PostResponse) =>
+      println("found your key")
       requestContext.complete(StatusCodes.OK, response)
       killYourself
 
@@ -404,6 +404,9 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
     case response: Vector[String] =>
       requestContext.complete(StatusCodes.OK, response)
       killYourself
+
+    case Right(notAuthorizedError) =>
+      println(notAuthorizedError)
    }
 
   private def killYourself = self ! PoisonPill

@@ -21,9 +21,16 @@ class PostNode(postId:String, postUserId:String, postContent:String, keys: Map[S
     var content = postContent
     var keyMap = keys
 
-    def postResponse(): PostResponse = {
-        val postResponse = new PostResponse(id, creatorId, content)
-        postResponse
+    def postResponse(requesterId:String): Either[PostResponse, String] = {
+        val encryptedKey = keyMap.get(requesterId)
+        println("[SERVER]: within postResponse " + encryptedKey)
+        if(encryptedKey == None) {
+            //Requester is not authorized to view this post.
+            Right("fuck off")
+        } else {
+            val postResponse = new PostResponse(id, creatorId, content, encryptedKey.get)    
+            Left(postResponse)
+        }
     }
 }
 

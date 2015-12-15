@@ -15,7 +15,7 @@ object FacebookAPI {
   
   case class FBPost(userId: String, content: String, keyMap: Map[String, String])
   case object PostDeleted
-  case class PostResponse(id: String, userId: String, content: String)
+  case class PostResponse(id: String, userId: String, content: String, encryptedKey: String)
 
   case class User(email: String, firstname:String, lastname:String, gender:String, publicKey:String)
   case object UserAlreadyExists
@@ -63,7 +63,7 @@ object FacebookAPI {
   }
 
   object PostResponse extends DefaultJsonProtocol {
-    implicit val format = jsonFormat3(PostResponse.apply)
+    implicit val format = jsonFormat4(PostResponse.apply)
   }
 
   object UserResponse extends DefaultJsonProtocol {
