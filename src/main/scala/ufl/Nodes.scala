@@ -26,7 +26,7 @@ class PostNode(postId:String, postUserId:String, postContent:String, keys: Map[S
         println("[SERVER]: within postResponse " + encryptedKey)
         if(encryptedKey == None) {
             //Requester is not authorized to view this post.
-            Right("fuck off")
+            Right("The requested post has not been shared with you.")
         } else {
             val postResponse = new PostResponse(id, creatorId, content, encryptedKey.get)    
             Left(postResponse)

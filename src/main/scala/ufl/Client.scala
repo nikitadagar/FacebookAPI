@@ -55,24 +55,25 @@ class UserActor extends Actor {
   def receive = {
     case `execute` => {
 
-      var key: SecretKey = getSymKey()
-      var test: String = "alok sharma"
-      var encryptedTest: String = encryptSym(test, key)
-      var decryptedTest: String = decryptSym(encryptedTest, key)
-      println(decryptedTest)
+      // var key: SecretKey = getSymKey()
+      // var test: String = "alok sharma"
+      // var encryptedTest: String = encryptSym(test, key)
+      // var decryptedTest: String = decryptSym(encryptedTest, key)
+      // println(decryptedTest)
 
 
-      // val newUserId: String = createUser
+      val newUserId: String = createUser
 
       // createPost(newUserId, "allFriends") //create a few new posts
       // createPost(newUserId)
       // getAllPosts(newUserId, newUserId) //view all your own posts
       // createAlbum //create a new album
       // uploadPhoto(newUserId) //upload a photo to the album
-      // addRandomFriend(newUserId) //add a few friends
+      addRandomFriend(newUserId) //add a few friends
+      createPost(newUserId, "allFriends")
       // addRandomFriend(newUserId)
       // addRandomFriend(newUserId)
-      // getAllFriendsPost(newUserId) //view your friends posts
+      getAllFriendsPost(newUserId, newUserId) //view your friends posts
       // uploadPhoto(newUserId) //upload another photo
       // getAllAlbums(newUserId)
       // getAlbumOfFriend(newUserId)
@@ -96,7 +97,6 @@ class UserActor extends Actor {
     val pipeline = sendReceive ~> unmarshal[UserResponse]
     val responseFuture = pipeline(Get("http://localhost:5000/user/" + userId))
     val result: UserResponse = Await.result(responseFuture, userTimeout)
-    println("[CLIENT] Get User " + result.email)
     return result
   }
 
@@ -237,11 +237,11 @@ class UserActor extends Actor {
   	val rand = new Random(System.currentTimeMillis());
   	val len = user.albums.length
   	if(len > 0) {
+      //choose a random album id to upload to
 	  	val random_index = rand.nextInt(len);
 	  	val albumId = user.albums(random_index);
 	  	//converting photo to a byte array
 	  	var photoArray: Array[Byte] = Files.readAllBytes(Paths.get("img/download.jpeg"))
-	  	// TODO: change creator ID
 	  	var photo:Photo = new Photo("Caption", albumId, userId, photoArray)
 
 	  	val pipeline = sendReceive ~> unmarshal[String]
@@ -324,7 +324,7 @@ class UserActor extends Actor {
 
   //AES symmetric encryption
   def encryptSym(text: String, symkey: SecretKey): String = {
-    var c: Cipher = Cipher.getInstance("AES/ECB/PKCS5")
+    var c: Cipher = Cipher.getInstance("AES/ECB/PKCS5PADDING")
     c.init(Cipher.ENCRYPT_MODE, symkey)
     var encryptedBytes: Array[Byte] = c.doFinal(text.getBytes())
     val encryptedString: String = Base64.getEncoder().encodeToString(encryptedBytes)
@@ -333,10 +333,11 @@ class UserActor extends Actor {
 
   //AES symmetric decryption
   def decryptSym(text:String, symkey: SecretKey): String = {
-    var c: Cipher = Cipher.getInstance("AES/ECB/PKCS5");
+    var c: Cipher = Cipher.getInstance("AES/ECB/PKCS5PADDING");
     c.init(Cipher.DECRYPT_MODE, symkey);
-    var decryptedBytes: Array[Byte] = c.doFinal(text.getBytes());
-    val decryptedString: String = Base64.getEncoder().encodeToString(decryptedBytes)
+    val decodedText = Base64.getDecoder().decode(text)
+    var decryptedBytes: Array[Byte] = c.doFinal(decodedText)
+    val decryptedString: String = new String(decryptedBytes)
     return decryptedString
   }
 

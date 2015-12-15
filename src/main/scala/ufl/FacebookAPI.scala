@@ -32,6 +32,7 @@ object FacebookAPI {
 
   case class FriendsList(owner:String, friend:String)
   case object FriendsListUpdated
+  case object FriendExists
   
   /* json (un)marshalling */
   object Page extends DefaultJsonProtocol {

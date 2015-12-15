@@ -146,7 +146,6 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
             responder ! NodeNotFound("User")
         } ~
         get { requestContext =>
-          println("get user " + id)
           var resultUser: Option[UserNode] = RestApi.userList.find(_.id == id)
           val responder = createResponder(requestContext)
           resultUser.map(responder ! _.userResponse())
@@ -239,20 +238,29 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
     pathPrefix("friendsList") {
       pathEnd {
         post {
-          entity(as[FriendsList]) { friendsList => requestContext =>
+          entity(as[FriendsList]) { friendRequest => requestContext =>
             val responder = createResponder(requestContext)
-            val resultOwner: Option[UserNode] = RestApi.userList.find(_.id == friendsList.owner)
-            val resultFriend: Option[UserNode] = RestApi.userList.find(_.id == friendsList.friend)
+            val resultOwner: Option[UserNode] = RestApi.userList.find(_.id == friendRequest.owner)
+            val resultFriend: Option[UserNode] = RestApi.userList.find(_.id == friendRequest.friend)
             if(resultOwner.isEmpty) {
               responder ! NodeNotFound("User")
             } else if(resultFriend.isEmpty) {
               responder ! NodeNotFound("Friend")
             } else {
-              //both owner and friend exist, add in each others friends list.
-              resultOwner.get.friendsList = resultOwner.get.friendsList :+ friendsList.friend
-              resultFriend.get.friendsList = resultFriend.get.friendsList :+ friendsList.owner
-              println("Updated friends list for " + friendsList.owner + " and " + friendsList.friend)
-              responder ! FriendsListUpdated
+              //both owner and friend exist, check if they're not friends already
+              val alreadyFriend: Option[String] = resultOwner.get.friendsList.find(_ == friendRequest.friend)
+              if(alreadyFriend.isEmpty) {
+                //not a friend yet
+                //add in each others friends list.
+                resultOwner.get.friendsList = resultOwner.get.friendsList :+ friendRequest.friend
+                resultFriend.get.friendsList = resultFriend.get.friendsList :+ friendRequest.owner
+                println("Updated friends list for " + friendRequest.owner + " and " + friendRequest.friend)
+                responder ! FriendsListUpdated
+              } else {
+                //already a friend
+                responder ! FriendExists
+              }
+              
             }
           }
         }
@@ -376,6 +384,10 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
       requestContext.complete(StatusCodes.Conflict, "A user with that email is already registered")
       killYourself
 
+    case FriendExists =>
+      requestContext.complete(StatusCodes.Conflict, "Requested user is already a friend.")
+      killYourself
+
     case NodeNotFound(nodeType: String) =>
       requestContext.complete(StatusCodes.NotFound, nodeType + " not found")  
       killYourself    
@@ -405,8 +417,9 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
       requestContext.complete(StatusCodes.OK, response)
       killYourself
 
-    case Right(notAuthorizedError) =>
-      println(notAuthorizedError)
+    case Right(notAuthorizedError:String) =>
+      requestContext.complete(StatusCodes.Unauthorized, notAuthorizedError)
+      killYourself
    }
 
   private def killYourself = self ! PoisonPill
