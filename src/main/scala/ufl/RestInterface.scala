@@ -116,9 +116,9 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
         get{
           parameter('requesterId, 'auth) { (requesterId, auth) =>
             requestContext =>
+            val responder = createResponder(requestContext)
             if (authenticate(requesterId, auth)) {
               var resultPost: Option[PostNode] = RestApi.postList.find(_.id == id)
-              val responder = createResponder(requestContext)
               resultPost.map(responder ! _.postResponse(requesterId))
                 .getOrElse(responder ! NodeNotFound("Post"))
             } else {
@@ -201,23 +201,34 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
         }
       } ~
       path(Segment) { id =>
-        delete { requestContext =>
-          val responder = createResponder(requestContext)
-          var resultPhoto: Option[PhotoNode] = RestApi.photoList.find(_.id == id)
-          if(resultPhoto.isEmpty) {
-            responder ! NodeNotFound("Photo")
-          } else {
-            RestApi.photoList = RestApi.photoList.filterNot(_.id == id)
-            responder ! PhotoDeleted
+        delete { 
+          parameter('requesterId, 'auth) { (requesterId, auth) =>
+            requestContext =>
+            val responder = createResponder(requestContext)
+            if (authenticate(requesterId, auth)) {
+              var resultPhoto: Option[PhotoNode] = RestApi.photoList.find(_.id == id)
+              if(resultPhoto.isEmpty) {
+                responder ! NodeNotFound("Photo")
+              } else {
+                RestApi.photoList = RestApi.photoList.filterNot(_.id == id)
+                responder ! PhotoDeleted
+              }
+            } else {
+              responder ! AuthFailed
+            }
           }
         } ~
         get{
-          parameter('requesterId) { requesterId =>
-          requestContext =>
-          var resultPhoto: Option[PhotoNode] = RestApi.photoList.find(_.id == id)
-          val responder = createResponder(requestContext)
-          resultPhoto.map(responder ! _.photoResponse(requesterId))
-            .getOrElse(responder ! NodeNotFound("Photo"))
+          parameter('requesterId, 'auth) { (requesterId, auth) =>
+            requestContext =>
+            val responder = createResponder(requestContext)
+            if (authenticate(requesterId, auth)) {
+              var resultPhoto: Option[PhotoNode] = RestApi.photoList.find(_.id == id)
+              resultPhoto.map(responder ! _.photoResponse(requesterId))
+                .getOrElse(responder ! NodeNotFound("Photo"))
+            } else {
+              responder ! AuthFailed
+            }
           }
         }
       }
@@ -255,11 +266,15 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
         } ~
         get{
           parameter('requesterId) { requesterId =>
-          requestContext =>
-          var resultAlbum: Option[AlbumNode] = RestApi.albumList.find(_.id == id)
-          val responder = createResponder(requestContext)
-          resultAlbum.map(responder ! _.albumResponse(requesterId))
-            .getOrElse(responder ! NodeNotFound("Album"))
+            requestContext =>
+            val responder = createResponder(requestContext)
+            if (authenticate(requesterId, auth)) {
+              var resultAlbum: Option[AlbumNode] = RestApi.albumList.find(_.id == id)
+              resultAlbum.map(responder ! _.albumResponse(requesterId))
+                .getOrElse(responder ! NodeNotFound("Album"))
+            } else {
+              responder ! AuthFailed
+            }
           }
         }
       }
