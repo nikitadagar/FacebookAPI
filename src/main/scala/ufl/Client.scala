@@ -137,7 +137,7 @@ class UserActor extends Actor {
     println("[CLIENT] getting all posts for user: " + userId)
 
     for(id <- allPostsIds) {
-      var signedAuth: String = getSignedAuth(userId)
+      var signedAuth: String = getSignedAuth(requesterId)
       var encodedAuth: String = URLEncoder.encode(signedAuth, "UTF-8")
       var responseFuture = pipeline(Get("http://localhost:5000/post/" + id + 
         "?requesterId=" + requesterId + "&auth=" + encodedAuth))
@@ -152,7 +152,6 @@ class UserActor extends Actor {
       val postContent = decryptSym(result.content, aesKey)
       println("[CLIENT] Post id: " + result.id + " content: " + postContent)
     }
-    println("\n")
   }
 
   def deleteLastPost(userId: String) = {

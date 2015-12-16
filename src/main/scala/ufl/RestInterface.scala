@@ -501,7 +501,7 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
       killYourself
 
     case NodeNotFound(nodeType: String) =>
-      println("[SERVER] Node not found")
+      println("[SERVER] Node not found " + nodeType)
       requestContext.complete(StatusCodes.OK, "[ERROR] " + nodeType + " not found")  
       killYourself
 
