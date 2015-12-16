@@ -36,6 +36,7 @@ class PostNode(postId:String, postUserId:String, postContent:String, users: Map[
 class UserNode(userId:String, userEmail:String, firstName:String,
     lastName:String, userGender:String, public_Key:String) {
     val id = userId
+    var signNumber : String = _
     val publicKey = public_Key
     var email = userEmail
     var first_name = firstName

@@ -7,12 +7,18 @@ import spray.httpx.SprayJsonSupport._
 import spray.json.DefaultJsonProtocol._
 import spray.routing._
 import spray.json._
-
+import scala.util.Random
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import ufl.FacebookAPI._
 import scala.collection.immutable.Map
 import java.util.Calendar
+import java.security._
+import javax.crypto._
+import javax.crypto.SecretKey
+import javax.crypto.spec.SecretKeySpec
+import java.security.spec.X509EncodedKeySpec
+import java.util.Base64
 
 class RestInterface extends HttpServiceActor
   with RestApi {
@@ -79,19 +85,22 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
           entity(as[FBPost]) { post => requestContext =>
             val responder = createResponder(requestContext)
             val resultUser: Option[UserNode] = RestApi.userList.find(_.id == post.userId)
-
             if(resultUser.isEmpty) {
               //invalid user id
               responder ! NodeNotFound("User")
             } else {
+              if (authenticate(post.userId, post.auth)) { 
               //Valid user, create a new post.
-              var newPostId = RestApi.getId
-              val postNode: PostNode = new PostNode(newPostId, resultUser.get.id, post.content, post.authUsers)
-              RestApi.postList = RestApi.postList :+ postNode
-              resultUser.get.postList = resultUser.get.postList :+ postNode.id
-              println("Created new post by: " + resultUser.get.id + ", id: " + postNode.id + ", posts: " + resultUser.get.postList.length)
-              responder ! NodeCreated(newPostId)
-            }
+                var newPostId = RestApi.getId
+                val postNode: PostNode = new PostNode(newPostId, resultUser.get.id, post.content, post.authUsers)
+                RestApi.postList = RestApi.postList :+ postNode
+                resultUser.get.postList = resultUser.get.postList :+ postNode.id
+                println("Created new post by: " + resultUser.get.id + ", id: " + postNode.id + ", posts: " + resultUser.get.postList.length)
+                responder ! NodeCreated(newPostId)
+              } else {
+                responder ! AuthFailed
+              }
+            } 
           }
         }
       } ~
@@ -295,6 +304,21 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
           responder ! userIdList
         }
       }
+    }~
+    pathPrefix("signNumber") {
+      path(Segment) { id =>
+        get { requestContext =>
+          val responder = createResponder(requestContext)
+          var resultUser: Option[UserNode] = RestApi.userList.find(_.id == id) //get user to store random number in user object
+          if(resultUser.isEmpty) {
+            responder ! NodeNotFound("User")
+          } else {
+            val rand : String = (new Random(System.currentTimeMillis)).nextInt(1000) + ""
+            resultUser.get.signNumber = rand
+            responder ! SignNumberRequest(rand)
+          }
+        }
+      }
     }
 
   private def createResponder(requestContext:RequestContext) = {
@@ -369,6 +393,36 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
     var resultUser: Option[UserNode] = RestApi.userList.find(_.id == friendListOfId)
     resultUser.get.friendsList = resultUser.get.friendsList.filterNot(_ == deleteUserId)
   }
+
+  def decryptAsym(text: String, key: PublicKey): String = {
+    val encryptedBytes: Array[Byte] = Base64.getDecoder().decode(text);
+    val cipher = Cipher.getInstance("RSA")
+    cipher.init(Cipher.DECRYPT_MODE, key)
+    try{
+      var textBytes:Array[Byte] = cipher.doFinal(encryptedBytes)
+      return new String(textBytes)
+    } catch {
+      case e: GeneralSecurityException => return "DecryptionFailed"
+    } 
+    
+  }
+
+  def stringToPublicKey(publicKey: String): PublicKey = {
+    var publicBytes: Array[Byte] = Base64.getDecoder().decode(publicKey);
+    val keySpec: X509EncodedKeySpec = new X509EncodedKeySpec(publicBytes);
+    val keyFactory: KeyFactory = KeyFactory.getInstance("RSA");
+    val key: PublicKey = keyFactory.generatePublic(keySpec);
+    return key
+  }
+
+  def authenticate(userId:String, text:String) : Boolean = {
+    val user = RestApi.userList.find(_.id == userId)
+    val publicKey:PublicKey = stringToPublicKey(user.get.publicKey)
+    val decryptedSign: String = decryptAsym(text, publicKey)
+    val authenticated: Boolean = decryptedSign.equals(user.get.signNumber)
+    user.get.signNumber = if (authenticated) "-1" else user.get.signNumber
+    authenticated
+  }
 }
 
 class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
@@ -385,16 +439,20 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
       killYourself
 
     case UserAlreadyExists =>
-      requestContext.complete(StatusCodes.Conflict, "A user with that email is already registered")
+      requestContext.complete(StatusCodes.Conflict, "[ERROR] A user with that email is already registered")
       killYourself
 
     case FriendExists =>
-      requestContext.complete(StatusCodes.OK, "Requested user is already a friend.")
+      requestContext.complete(StatusCodes.OK, "[ERROR] Requested user is already a friend.")
       killYourself
 
     case NodeNotFound(nodeType: String) =>
-      requestContext.complete(StatusCodes.NotFound, nodeType + " not found")  
-      killYourself    
+      requestContext.complete(StatusCodes.OK, "[ERROR] " + nodeType + " not found")  
+      killYourself
+
+    case SignNumberRequest(number: String) =>
+      requestContext.complete(StatusCodes.OK, number)
+      killYourself
 
     case response: PageResponse =>
       requestContext.complete(StatusCodes.OK, response)
@@ -424,6 +482,11 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
     case Right(notAuthorizedError:String) =>
       requestContext.complete(StatusCodes.Unauthorized, notAuthorizedError)
       killYourself
+
+    case AuthFailed => 
+      requestContext.complete(StatusCodes.OK, "[ERROR] Authentication Failed")
+      killYourself
+
    }
 
   private def killYourself = self ! PoisonPill
