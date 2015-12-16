@@ -265,15 +265,22 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
         }
       } ~
       path(Segment) {  id =>
-        delete { requestContext =>
-          val responder = createResponder(requestContext)
-          if(deleteAlbum(id))
-            responder ! UserDeleted
-          else
-            responder ! NodeNotFound("User")
+        delete { 
+          parameter('requesterId, 'auth) { (requesterId, auth) =>
+            requestContext =>
+            val responder = createResponder(requestContext)
+            if (authenticate(requesterId, auth)) {
+              if(deleteAlbum(id))
+                responder ! UserDeleted
+              else
+                responder ! NodeNotFound("User")
+            } else {
+              responder ! AuthFailed
+            }
+          }
         } ~
         get{
-          parameter('requesterId) { requesterId =>
+          parameter('requesterId, 'auth) { (requesterId, auth) =>
             requestContext =>
             val responder = createResponder(requestContext)
             if (authenticate(requesterId, auth)) {
