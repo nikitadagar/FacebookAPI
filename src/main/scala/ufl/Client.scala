@@ -57,36 +57,36 @@ class UserActor extends Actor {
     case `execute` => {
 
       val newUserId: String = createUser
+      //Three privacy levels: public, allFriends, randomFriends
 
-      // getAllPosts(newUserId, newUserId) //view all your own posts
-      // createAlbum //create a new album
-      // uploadPhoto(newUserId) //upload a photo to the album
-      // addRandomFriend(newUserId) //add a few friends
-      createPost(newUserId, getShareWithArray("allFriends", newUserId))
-      createPost(newUserId, getShareWithArray("allFriends", newUserId))
-      getAllPosts(newUserId, newUserId)
-      // addRandomFriend(newUserId) //add a few friends
+      addRandomFriend(newUserId) //add a new friend
+      createPost(newUserId, privacyLevel("allFriends", newUserId)) //create posts
+      createPost(newUserId, privacyLevel("allFriends", newUserId))
+      deleteLastPost(newUserId)
+      createAlbum(newUserId, privacyLevel("allFriends", newUserId))
+      uploadPhoto(newUserId, privacyLevel("allFriends", newUserId)) //upload another photo
+      getAllPosts(newUserId, newUserId) //view your own posts
       // createPost(newUserId, "allFriends")
       // addRandomFriend(newUserId)
       // addRandomFriend(newUserId)
-      // getAllFriendsPost(newUserId, newUserId) //view your friends posts
-      // uploadPhoto(newUserId, getShareWithArray("allFriends", newUserId)) //upload another photo
+      getAllFriendsPost(newUserId, newUserId) //view all your friends posts
       // getAllAlbums(newUserId)
       // getAlbumOfFriend(newUserId)
 
-      println("[CLIENT] done")
+      println("[CLIENT] Finished tasks")
 
       self ! PoisonPill      
     }
   }
 
   def createUser: String = {
+    println("\n[CLIENT] request for creating new user")
     val pipeline = sendReceive ~> unmarshal[String]
     var user: User = new User(self.path.name + "@actors.com", "Actor", "Scala", "M", publicKeyToString(publicKey))
     val responseFuture = pipeline(Post("http://localhost:5000/user", user))
     val result = Await.result(responseFuture, userTimeout)
     var id = result.substring(result.indexOf(":") + 1).trim()
-    println("[CLIENT] new user has id: " + id)
+    println("[CLIENT] Result for create user: New user has id " + id + "\n")
     return id
   }
 
@@ -116,6 +116,7 @@ class UserActor extends Actor {
   }
 
   def createPost(userId: String, shareWithArray: Vector[String]) = {
+    println("[CLIENT] creating new fbpost")
     val pipeline = sendReceive ~> unmarshal[String]
     var postContent = "my name is " + self.path.name + " and I'm so cool."
     var key: SecretKey = getSymKey()
@@ -126,20 +127,18 @@ class UserActor extends Actor {
     var fbpost: FBPost = new FBPost(userId, postContent, authUsers, getSignedAuth(userId))
     val responseFuture = pipeline(Post("http://localhost:5000/post", fbpost))
     val result = Await.result(responseFuture, userTimeout)
-
-    println("[CLIENT] creating new fbpost")
-    println("[CLIENT] result for post " + result)
+    println("[CLIENT] Result for post " + result + "\n")
   }
 
   def getAllPosts(userId: String, requesterId: String) = {
-    //if userId not same as my own id, then get that users public key
     val userResponse: UserResponse = getUser(userId)
     val allPostsIds: Vector[String] = userResponse.posts
     var pipeline = sendReceive ~> unmarshal[PostResponse]
+    println("[CLIENT] getting all posts for user: " + userId)
 
     for(id <- allPostsIds) {
       var signedAuth: String = getSignedAuth(userId)
-      var encodedAuth: String = URLEncoder.encode(signedAuth, "UTF-8")  
+      var encodedAuth: String = URLEncoder.encode(signedAuth, "UTF-8")
       var responseFuture = pipeline(Get("http://localhost:5000/post/" + id + 
         "?requesterId=" + requesterId + "&auth=" + encodedAuth))
       var result: PostResponse = Await.result(responseFuture, userTimeout)
@@ -151,11 +150,28 @@ class UserActor extends Actor {
 
       //decrypt content with AES key.
       val postContent = decryptSym(result.content, aesKey)
-      println("[CLIENT] Post: " + postContent)
+      println("[CLIENT] Post id: " + result.id + " content: " + postContent)
     }
+    println("\n")
+  }
+
+  def deleteLastPost(userId: String) = {
+    println("[CLIENT] Deleting user " + userId + "'s last post")
+    val userResponse: UserResponse = getUser(userId)
+    val allPostsIds: Vector[String] = userResponse.posts
+    val deletePostId: String = allPostsIds(allPostsIds.length - 1)
+    var pipeline = sendReceive ~> unmarshal[String]
+
+    var signedAuth: String = getSignedAuth(userId)
+    var encodedAuth: String = URLEncoder.encode(signedAuth, "UTF-8")
+    var responseFuture = pipeline(Delete("http://localhost:5000/post/" + deletePostId + 
+        "?requesterId=" + userId + "&auth=" + encodedAuth))
+    var result: String = Await.result(responseFuture, userTimeout)
+    println("[CLIENT] Result for delete post: " + result + "\n")
   }
 
   def getAllFriendsPost(userId: String, requesterId: String) = {
+    println("[CLIENT] Getting all friends post")
     val userResponse: UserResponse = getUser(userId)
     val allFriendsIds: Vector[String] = userResponse.friends
     var pipeline = sendReceive ~> unmarshal[PostResponse]
@@ -163,6 +179,7 @@ class UserActor extends Actor {
     for(friendId <- allFriendsIds) {
       getAllPosts(friendId, requesterId)
     }
+    println("[CLIENT] Finished getting all friends post \n")
   }
 
   //gets all pictures of a random friend from given user's friends list
@@ -195,11 +212,10 @@ class UserActor extends Actor {
 
   def addRandomFriend(ownerId:String) {
     val pipeline = sendReceive ~> unmarshal[String]
-    
     var randomFriend:String = getRandomUser
     if(randomFriend.equals("forever alone")) {
       //you're all alone. wont add anyone
-      println("[CLIENT] you're the first user. Can't add any friend for now.")
+      println("[CLIENT] Unable to add friends since you're the first user.\n")
     } else {
       while(randomFriend.equals(ownerId)) {
         randomFriend = getRandomUser
@@ -208,11 +224,12 @@ class UserActor extends Actor {
       println("[CLIENT] adding " + randomFriend + " as a new friend for " + ownerId)
       val responseFuture = pipeline(Post("http://localhost:5000/friendsList", newFriend))
       val result = Await.result(responseFuture, userTimeout)
-      println("[CLIENT] result for add friend: " + result)
+      println("[CLIENT] Result for add friend: " + result + "\n")
     }
   }
 
   def uploadPhoto(userId:String, shareWithArray: Vector[String]) = {
+    println("[CLIENT] Uploading new photo")
   	val user = getUser(userId)
   	val rand = new Random(System.currentTimeMillis());
     var caption = self.path.name + " is travelling!"
@@ -234,7 +251,7 @@ class UserActor extends Actor {
 	  	val pipeline = sendReceive ~> unmarshal[String]
 	  	val responseFuture = pipeline(Post("http://localhost:5000/photo", photo))
 	  	val result = Await.result(responseFuture, userTimeout)
-	  	println("[CLIENT] Photo " + result)
+	  	println("[CLIENT] Result for upload photo: " + result + "\n")
 
 	  }
 	  else {
@@ -260,7 +277,7 @@ class UserActor extends Actor {
   }
 
   def createAlbum(creatorId:String, shareWithArray: Vector[String]) = {
-  	// TODO: change creator ID
+    println("[CLIENT] Request for create new album")
     var albumName: String = self.path.name + "'s photo album"
     var albumCaption: String = self.path.name + "'s travel journal"
     var key: SecretKey = getSymKey()
@@ -275,7 +292,7 @@ class UserActor extends Actor {
   	val pipeline = sendReceive ~> unmarshal[String]
   	val responseFuture = pipeline(Post("http://localhost:5000/album", album))
   	val result = Await.result(responseFuture, userTimeout)
-  	println("[CLIENT] Album " + result)
+  	println("[CLIENT] Result for create new album: " + result + "\n")
   }
 
   def getAlbum (albumId:String): AlbumResponse = {
@@ -424,7 +441,7 @@ class UserActor extends Actor {
   }
 
   //Generates a list of frends
-  def getShareWithArray(shareWith: String, creatorId: String): Vector[String] = {
+  def privacyLevel(shareWith: String, creatorId: String): Vector[String] = {
     var shareWithArray = Vector[String]()
     if(shareWith.equals("public")) {
       return shareWithArray

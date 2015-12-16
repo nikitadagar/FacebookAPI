@@ -95,7 +95,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
                 val postNode: PostNode = new PostNode(newPostId, resultUser.get.id, post.content, post.authUsers)
                 RestApi.postList = RestApi.postList :+ postNode
                 resultUser.get.postList = resultUser.get.postList :+ postNode.id
-                println("Created new post by: " + resultUser.get.id + ", id: " + postNode.id + ", posts: " + resultUser.get.postList.length)
+                println("[SERVER] Created new post by userId: " + resultUser.get.id + ", postId: " + postNode.id + ", total posts by user: " + resultUser.get.postList.length)
                 responder ! NodeCreated(newPostId)
               } else {
                 responder ! AuthFailed
@@ -111,8 +111,10 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
             val responder = createResponder(requestContext)
             if (authenticate(requesterId, auth)) {
               var postDeleted = deletePost(id)
-              if(postDeleted)
+              if(postDeleted) {
+                println("[SERVER] post deleted")
                 responder ! PostDeleted
+              }
               else
                 responder ! NodeNotFound("Post")
             }
@@ -150,7 +152,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
                 user.lastname, user.gender, user.publicKey)
               RestApi.userList = RestApi.userList :+ userNode
 
-              println("Created new user with id: " + userNode.id)
+              println("[SERVER] Created new user")
               responder ! NodeCreated(newUserId)
             }
           }
@@ -199,6 +201,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
                   photo.creatorId, photo.photo, photo.authUsers)
                   RestApi.photoList = RestApi.photoList :+ photoNode
                   resultAlbum.get.photos = resultAlbum.get.photos :+ photoNode.id
+                  println("[SERVER] New photo uploaded with id " + newPhotoId)
                   responder ! NodeCreated(newPhotoId)
                 }
               } else {
@@ -256,6 +259,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
                   album.creatorId, Calendar.getInstance().getTime().toString, album.authUsers)
                 RestApi.albumList = RestApi.albumList :+ albumNode
                 resultUser.get.albumList = resultUser.get.albumList :+ newAlbumId
+                println("[SERVER] new album created")
                 responder ! NodeCreated(newAlbumId)
               } else {
                 responder ! AuthFailed
@@ -314,7 +318,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
                   //add in each others friends list.
                   resultOwner.get.friendsList = resultOwner.get.friendsList :+ friendRequest.friend
                   resultFriend.get.friendsList = resultFriend.get.friendsList :+ friendRequest.owner
-                  println("Updated friends list for " + friendRequest.owner + " and " + friendRequest.friend)
+                  println("[SERVER] Updated friends list for " + friendRequest.owner + " and " + friendRequest.friend)
                   responder ! FriendsListUpdated
                 } else {
                   //already a friend
@@ -386,7 +390,6 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
   }
 
   private def deletePost(id:String): Boolean = {
-    println("delete post " + id)
     var resultPost: Option[PostNode] = RestApi.postList.find(_.id == id)
     if(resultPost.isEmpty) {
       return false
@@ -488,14 +491,17 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
       killYourself
 
     case UserAlreadyExists =>
+    println("[SERVER] Email already exists.")
       requestContext.complete(StatusCodes.Conflict, "[ERROR] A user with that email is already registered")
       killYourself
 
     case FriendExists =>
+    println("[SERVER] Friend already exists.")
       requestContext.complete(StatusCodes.OK, "[ERROR] Requested user is already a friend.")
       killYourself
 
     case NodeNotFound(nodeType: String) =>
+      println("[SERVER] Node not found")
       requestContext.complete(StatusCodes.OK, "[ERROR] " + nodeType + " not found")  
       killYourself
 
@@ -528,10 +534,12 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
       killYourself
 
     case Right(notAuthorizedError:String) =>
+      println("[SERVER] Not authorized to access requested node.")
       requestContext.complete(StatusCodes.Unauthorized, notAuthorizedError)
       killYourself
 
     case AuthFailed => 
+      println("[SERVER] auth failed")
       requestContext.complete(StatusCodes.OK, "[ERROR] Authentication Failed")
       killYourself
 
