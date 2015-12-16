@@ -21,6 +21,7 @@ import javax.crypto.spec.SecretKeySpec
 import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
 import scala.collection.immutable.Map
+import java.net.URLEncoder
 // import scala.concurrent.ExecutionContext.Implicits.global
 case object execute
 case object init
@@ -62,17 +63,18 @@ class UserActor extends Actor {
       // uploadPhoto(newUserId) //upload a photo to the album
       // addRandomFriend(newUserId) //add a few friends
       createPost(newUserId, getShareWithArray("allFriends", newUserId))
-      createPost(newUserId, getShareWithArray("allFriendswho", newUserId))
+      createPost(newUserId, getShareWithArray("allFriends", newUserId))
+      getAllPosts(newUserId, newUserId)
       // addRandomFriend(newUserId) //add a few friends
       // createPost(newUserId, "allFriends")
       // addRandomFriend(newUserId)
       // addRandomFriend(newUserId)
-      getAllFriendsPost(newUserId, newUserId) //view your friends posts
+      // getAllFriendsPost(newUserId, newUserId) //view your friends posts
       // uploadPhoto(newUserId, getShareWithArray("allFriends", newUserId)) //upload another photo
       // getAllAlbums(newUserId)
       // getAlbumOfFriend(newUserId)
 
-      println("done")
+      println("[CLIENT] done")
 
       self ! PoisonPill      
     }
@@ -126,7 +128,7 @@ class UserActor extends Actor {
     val result = Await.result(responseFuture, userTimeout)
 
     println("[CLIENT] creating new fbpost")
-    println(result)
+    println("[CLIENT] result for post " + result)
   }
 
   def getAllPosts(userId: String, requesterId: String) = {
@@ -136,7 +138,10 @@ class UserActor extends Actor {
     var pipeline = sendReceive ~> unmarshal[PostResponse]
 
     for(id <- allPostsIds) {
-      var responseFuture = pipeline(Get("http://localhost:5000/post/" + id + "?requesterId=" + requesterId))
+      var signedAuth: String = getSignedAuth(userId)
+      var encodedAuth: String = URLEncoder.encode(signedAuth, "UTF-8")  
+      var responseFuture = pipeline(Get("http://localhost:5000/post/" + id + 
+        "?requesterId=" + requesterId + "&auth=" + encodedAuth))
       var result: PostResponse = Await.result(responseFuture, userTimeout)
       
       //decrypt with your private key, and get the AES key.
@@ -199,11 +204,11 @@ class UserActor extends Actor {
       while(randomFriend.equals(ownerId)) {
         randomFriend = getRandomUser
       }
-      var newFriend: FriendsList = new FriendsList(ownerId, randomFriend)
+      var newFriend: FriendsList = new FriendsList(ownerId, randomFriend, getSignedAuth(ownerId))
       println("[CLIENT] adding " + randomFriend + " as a new friend for " + ownerId)
       val responseFuture = pipeline(Post("http://localhost:5000/friendsList", newFriend))
       val result = Await.result(responseFuture, userTimeout)
-      println("result for add friend: " + result)
+      println("[CLIENT] result for add friend: " + result)
     }
   }
 
@@ -225,7 +230,7 @@ class UserActor extends Actor {
         caption = encryptSym(caption, key)
       }
 
-	  	var photo:Photo = new Photo(caption, albumId, userId, photoArray, authUsers)
+	  	var photo:Photo = new Photo(caption, albumId, userId, photoArray, authUsers, getSignedAuth(userId))
 	  	val pipeline = sendReceive ~> unmarshal[String]
 	  	val responseFuture = pipeline(Post("http://localhost:5000/photo", photo))
 	  	val result = Await.result(responseFuture, userTimeout)
@@ -265,7 +270,7 @@ class UserActor extends Actor {
       albumCaption = encryptSym(albumCaption, key)
     }
 
-  	var album:Album = new Album(albumName, albumCaption, creatorId, authUsers)
+  	var album:Album = new Album(albumName, albumCaption, creatorId, authUsers, getSignedAuth(creatorId))
 
   	val pipeline = sendReceive ~> unmarshal[String]
   	val responseFuture = pipeline(Post("http://localhost:5000/album", album))

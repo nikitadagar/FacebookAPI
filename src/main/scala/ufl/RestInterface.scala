@@ -114,12 +114,16 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
             responder ! NodeNotFound("Post")
         } ~
         get{
-          parameter('requesterId) { requesterId =>
-          requestContext =>
-          var resultPost: Option[PostNode] = RestApi.postList.find(_.id == id)
-          val responder = createResponder(requestContext)
-          resultPost.map(responder ! _.postResponse(requesterId))
-            .getOrElse(responder ! NodeNotFound("Post"))
+          parameter('requesterId, 'auth) { (requesterId, auth) =>
+            requestContext =>
+            if (authenticate(requesterId, auth)) {
+              var resultPost: Option[PostNode] = RestApi.postList.find(_.id == id)
+              val responder = createResponder(requestContext)
+              resultPost.map(responder ! _.postResponse(requesterId))
+                .getOrElse(responder ! NodeNotFound("Post"))
+            } else {
+              responder ! AuthFailed
+            }
           }
         }
       }
@@ -173,19 +177,24 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
             if (user.isEmpty) {
               responder ! NodeNotFound("User")
             } else {
-              //find if that user has the album id
-              var photoAlbumId: Option[String] = user.get.albumList.find(_ == photo.albumId)
-              if (photoAlbumId.isEmpty) {
-                responder ! NodeNotFound("Album")
-              }
-              else {
-                var newPhotoId = RestApi.getId
-                var resultAlbum: Option[AlbumNode] = RestApi.albumList.find(_.id == photoAlbumId.get)
-                val photoNode: PhotoNode = new PhotoNode(newPhotoId, photo.caption, photo.albumId,
-                 photo.creatorId, photo.photo, photo.authUsers)
-                RestApi.photoList = RestApi.photoList :+ photoNode
-                resultAlbum.get.photos = resultAlbum.get.photos :+ photoNode.id
-                responder ! NodeCreated(newPhotoId)
+              if(authenticate(photo.creatorId, photo.auth)) {
+                //user authenticated
+                //find if that user has the album id
+                var photoAlbumId: Option[String] = user.get.albumList.find(_ == photo.albumId)
+                if (photoAlbumId.isEmpty) {
+                  responder ! NodeNotFound("Album")
+                }
+                else {
+                  var newPhotoId = RestApi.getId
+                  var resultAlbum: Option[AlbumNode] = RestApi.albumList.find(_.id == photoAlbumId.get)
+                  val photoNode: PhotoNode = new PhotoNode(newPhotoId, photo.caption, photo.albumId,
+                  photo.creatorId, photo.photo, photo.authUsers)
+                  RestApi.photoList = RestApi.photoList :+ photoNode
+                  resultAlbum.get.photos = resultAlbum.get.photos :+ photoNode.id
+                  responder ! NodeCreated(newPhotoId)
+                }
+              } else {
+                responder ! AuthFailed
               }
             }
           }
@@ -223,11 +232,15 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
             if(resultUser.isEmpty) {
               responder ! NodeNotFound("User")
             } else {
-              val albumNode: AlbumNode = new AlbumNode(newAlbumId, album.name, album.caption, 
-                album.creatorId, Calendar.getInstance().getTime().toString, album.authUsers)
-              RestApi.albumList = RestApi.albumList :+ albumNode
-              resultUser.get.albumList = resultUser.get.albumList :+ newAlbumId
-              responder ! NodeCreated(newAlbumId)
+              if(authenticate(album.creatorId, album.auth)) {
+                val albumNode: AlbumNode = new AlbumNode(newAlbumId, album.name, album.caption, 
+                  album.creatorId, Calendar.getInstance().getTime().toString, album.authUsers)
+                RestApi.albumList = RestApi.albumList :+ albumNode
+                resultUser.get.albumList = resultUser.get.albumList :+ newAlbumId
+                responder ! NodeCreated(newAlbumId)
+              } else {
+                responder ! AuthFailed
+              }
             }
           }
         }
@@ -263,20 +276,23 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
             } else if(resultFriend.isEmpty) {
               responder ! NodeNotFound("Friend")
             } else {
-              //both owner and friend exist, check if they're not friends already
-              val alreadyFriend: Option[String] = resultOwner.get.friendsList.find(_ == friendRequest.friend)
-              if(alreadyFriend.isEmpty) {
-                //not a friend yet
-                //add in each others friends list.
-                resultOwner.get.friendsList = resultOwner.get.friendsList :+ friendRequest.friend
-                resultFriend.get.friendsList = resultFriend.get.friendsList :+ friendRequest.owner
-                println("Updated friends list for " + friendRequest.owner + " and " + friendRequest.friend)
-                responder ! FriendsListUpdated
+              if (authenticate(friendRequest.owner, friendRequest.auth)) {
+                //both owner and friend exist, check if they're not friends already
+                val alreadyFriend: Option[String] = resultOwner.get.friendsList.find(_ == friendRequest.friend)
+                if(alreadyFriend.isEmpty) {
+                  //not a friend yet
+                  //add in each others friends list.
+                  resultOwner.get.friendsList = resultOwner.get.friendsList :+ friendRequest.friend
+                  resultFriend.get.friendsList = resultFriend.get.friendsList :+ friendRequest.owner
+                  println("Updated friends list for " + friendRequest.owner + " and " + friendRequest.friend)
+                  responder ! FriendsListUpdated
+                } else {
+                  //already a friend
+                  responder ! FriendExists
+                }
               } else {
-                //already a friend
-                responder ! FriendExists
+                responder ! AuthFailed
               }
-              
             }
           }
         }
@@ -462,7 +478,6 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
       killYourself
 
     case Left(response: PostResponse) =>
-      println("found your key")
       requestContext.complete(StatusCodes.OK, response)
       killYourself
 
