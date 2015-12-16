@@ -379,7 +379,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
   }
 
   private def deletePost(id:String): Boolean = {
-    println("delete user " + id)
+    println("delete post " + id)
     var resultPost: Option[PostNode] = RestApi.postList.find(_.id == id)
     if(resultPost.isEmpty) {
       return false
