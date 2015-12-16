@@ -233,7 +233,7 @@ class UserActor extends Actor {
 
 	  }
 	  else {
-	  	createAlbum
+	  	createAlbum(userId, shareWithArray)
 	  }
   }
 
@@ -258,6 +258,7 @@ class UserActor extends Actor {
   	// TODO: change creator ID
     var albumName: String = self.path.name + "'s photo album"
     var albumCaption: String = self.path.name + "'s travel journal"
+    var key: SecretKey = getSymKey()
     var authUsers = getPublicKeyMap(shareWithArray, key)
     if(authUsers.size > 0) {
       albumName = encryptSym(albumName, key)

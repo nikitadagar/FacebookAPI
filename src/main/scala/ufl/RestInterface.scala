@@ -245,7 +245,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
           requestContext =>
           var resultAlbum: Option[AlbumNode] = RestApi.albumList.find(_.id == id)
           val responder = createResponder(requestContext)
-          resultAlbum.map(responder ! _.albumResponse())
+          resultAlbum.map(responder ! _.albumResponse(requesterId))
             .getOrElse(responder ! NodeNotFound("Album"))
           }
         }

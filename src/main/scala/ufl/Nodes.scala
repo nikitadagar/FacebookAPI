@@ -84,7 +84,7 @@ class AlbumNode(albumId: String, albumName: String, albumCaption: String,
     var authUsers = users
     var photos = Vector[String]()
 
-    def albumResponse(requesterId): Either[AlbumResponse, String] = {
+    def albumResponse(requesterId: String): Either[AlbumResponse, String] = {
         val encryptedKey = authUsers.get(requesterId)
         if(encryptedKey == None) {
             //Requester is not authorized to view this post.

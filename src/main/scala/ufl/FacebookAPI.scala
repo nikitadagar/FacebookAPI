@@ -78,6 +78,6 @@ object FacebookAPI {
   }
 
   object AlbumResponse extends DefaultJsonProtocol {
-    implicit val format = jsonFormat7(AlbumResponse.apply)
+    implicit val format = jsonFormat8(AlbumResponse.apply)
   }
 }
