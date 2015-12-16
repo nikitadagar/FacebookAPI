@@ -13,7 +13,7 @@ object FacebookAPI {
   case object PageDeleted
   case class PageResponse(id: String, name: String, about: String)
   
-  case class FBPost(userId: String, content: String, keyMap: Map[String, String])
+  case class FBPost(userId: String, content: String, authUsers: Map[String, String])
   case object PostDeleted
   case class PostResponse(id: String, userId: String, content: String, encryptedKey: String)
 
@@ -22,9 +22,9 @@ object FacebookAPI {
   case object UserDeleted
   case class UserResponse(id:String, publicKey:String, email: String, first_name:String, last_name:String, gender:String, posts:Vector[String], albums:Vector[String], friends:Vector[String])
 
-  case class Photo(caption:String, albumId:String, creatorId:String, photo:Array[Byte])
+  case class Photo(caption:String, albumId:String, creatorId:String, photo:Array[Byte], authUsers: Map[String, String])
   case object PhotoDeleted
-  case class PhotoResponse(id:String, caption:String, album:String, from:String, photo:Array[Byte])
+  case class PhotoResponse(id:String, caption:String, album:String, from:String, photo:Array[Byte], encryptedKey: String)
 
   case class Album(name:String, caption: String, creatorId: String)
   case object AlbumDeleted
@@ -48,7 +48,7 @@ object FacebookAPI {
   }
 
   object Photo extends DefaultJsonProtocol {
-    implicit val format = jsonFormat4(Photo.apply)
+    implicit val format = jsonFormat5(Photo.apply)
   }
 
   object Album extends DefaultJsonProtocol {
@@ -72,7 +72,7 @@ object FacebookAPI {
   }
 
   object PhotoResponse extends DefaultJsonProtocol {
-    implicit val format = jsonFormat5(PhotoResponse.apply)
+    implicit val format = jsonFormat6(PhotoResponse.apply)
   }
 
   object AlbumResponse extends DefaultJsonProtocol {

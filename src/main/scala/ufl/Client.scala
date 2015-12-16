@@ -70,7 +70,7 @@ class UserActor extends Actor {
       // createAlbum //create a new album
       // uploadPhoto(newUserId) //upload a photo to the album
       addRandomFriend(newUserId) //add a few friends
-      createPost(newUserId, "allFriends")
+      createPost(newUserId, getShareWithArray("allFriends", newUserId))
       // addRandomFriend(newUserId)
       // addRandomFriend(newUserId)
       getAllFriendsPost(newUserId, newUserId) //view your friends posts
@@ -118,38 +118,15 @@ class UserActor extends Actor {
     }
   }
 
-  def createPost(userId: String, shareWith: String) = {
+  def createPost(userId: String, shareWithArray: Vector[String]) = {
     val pipeline = sendReceive ~> unmarshal[String]
     var postContent = "my name is " + self.path.name + " and I'm so cool."
-    var shareWithArray = Vector[String]()
-    if(shareWith.equals("public")) {
-      //leave the shareWithArray empty if public.
-    } else if(shareWith.equals("allFriends")) {
-      val userResponseAll = getUser(userId)
-      shareWithArray = userResponseAll.friends
-      shareWithArray = shareWithArray :+ userId
-    } else if(shareWith.equals("randomFriends")) {
-      val userResponse = getUser(userId)
-      var allFriends = userResponse.friends
-      
-      //get a random number between 0 to allFriends.length
-      val rand = new Random(System.currentTimeMillis());
-      val randomNumber = rand.nextInt(allFriends.length)
-      
-      //pick those many random friends, and add their ids to sharewith list
-      for(i <- 0 to randomNumber) {
-        var randomIndex = rand.nextInt(allFriends.length)
-        shareWithArray = shareWithArray :+ allFriends(randomIndex)
-      }
-      shareWithArray = shareWithArray :+ userId //add yourself to list of people authorized to view this post.
-    }
-
     var key: SecretKey = getSymKey()
-    var keyMap = getPublicKeyMap(shareWithArray, key)
-    if(keyMap.size > 0) {
+    var authUsers = getPublicKeyMap(shareWithArray, key)
+    if(authUsers.size > 0) {
       postContent = encryptSym(postContent, key)
     }
-    var fbpost: FBPost = new FBPost(userId, postContent, keyMap)
+    var fbpost: FBPost = new FBPost(userId, postContent, authUsers)
     val responseFuture = pipeline(Post("http://localhost:5000/post", fbpost))
     val result = Await.result(responseFuture, userTimeout)
 
@@ -232,9 +209,10 @@ class UserActor extends Actor {
     }
   }
 
-  def uploadPhoto(userId:String) = {
+  def uploadPhoto(userId:String, shareWithArray: Vector[String]) = {
   	val user = getUser(userId)
   	val rand = new Random(System.currentTimeMillis());
+    var caption = self.path.name + " is travelling!"
   	val len = user.albums.length
   	if(len > 0) {
       //choose a random album id to upload to
@@ -242,8 +220,14 @@ class UserActor extends Actor {
 	  	val albumId = user.albums(random_index);
 	  	//converting photo to a byte array
 	  	var photoArray: Array[Byte] = Files.readAllBytes(Paths.get("img/download.jpeg"))
-	  	var photo:Photo = new Photo("Caption", albumId, userId, photoArray)
+      var key: SecretKey = getSymKey()
+      var authUsers = getPublicKeyMap(shareWithArray, key)
+      if(authUsers.size > 0) {
+        photoArray = encryptSym(photoArray, key)
+        caption = encryptSym(caption, key)
+      }
 
+	  	var photo:Photo = new Photo(caption, albumId, userId, photoArray, authUsers)
 	  	val pipeline = sendReceive ~> unmarshal[String]
 	  	val responseFuture = pipeline(Post("http://localhost:5000/photo", photo))
 	  	val result = Await.result(responseFuture, userTimeout)
@@ -255,12 +239,21 @@ class UserActor extends Actor {
 	  }
   }
 
-  def getPhoto(id: String) : PhotoResponse = {
+  def getPhoto(id: String) = {
   	val pipeline = sendReceive ~> unmarshal[PhotoResponse]
     val responseFuture = pipeline(Get("http://localhost:5000/photo/" + id))
     val result = Await.result(responseFuture, userTimeout)
-    println("[CLIENT] Photo received with id " + result.id)
-    result
+
+    //decrypt key with your private key
+    val encryptedKey:String = result.encryptedKey
+    val aesKeyString:String = decryptAsym(encryptedKey, privateKey)
+    val aesKey: SecretKey = stringToSecretKey(aesKeyString)
+
+    //then decrypt photo and caption
+    val photoConent: Array[Byte] = decryptSym(result.photo, aesKey)
+    val photoCaption: String = decryptSym(result.caption, aesKey)
+
+    println("[CLIENT] Photo received with caption " + photoCaption)
   }
 
   def createAlbum = {
@@ -273,12 +266,12 @@ class UserActor extends Actor {
   	println("[CLIENT] Album " + result)
   }
 
-  def getAlbum (albumId:String) : AlbumResponse = {
+  def getAlbum (albumId:String): AlbumResponse = {
   	val pipeline = sendReceive ~> unmarshal[AlbumResponse]
     val responseFuture = pipeline(Get("http://localhost:5000/album/" + albumId))
     val result = Await.result(responseFuture, userTimeout)
     println("[CLIENT] Album received with id " + result.id)
-    result
+    return result
   }
 
   def getAllAlbums(userId:String) = {
@@ -295,7 +288,6 @@ class UserActor extends Actor {
     val responseFuture = pipeline(Delete("http://localhost:5000/album/" + albumId))
     val result = Await.result(responseFuture, userTimeout)
     println("[CLIENT] Album deleted " + result)
-    result
   }
 
   //Asymmetrically Encrypts input, and converts encrypted byte array to base64 encoded string.
@@ -331,14 +323,30 @@ class UserActor extends Actor {
     return encryptedString
   }
 
+  //AES symmetric encryption for a byte array.
+  def encryptSym(bytes: Array[Byte], symkey: SecretKey): Array[Byte] = {
+    var c: Cipher = Cipher.getInstance("AES/ECB/PKCS5PADDING")
+    c.init(Cipher.ENCRYPT_MODE, symkey)
+    var encryptedBytes: Array[Byte] = c.doFinal(bytes)
+    return encryptedBytes
+  }
+
   //AES symmetric decryption
   def decryptSym(text:String, symkey: SecretKey): String = {
-    var c: Cipher = Cipher.getInstance("AES/ECB/PKCS5PADDING");
-    c.init(Cipher.DECRYPT_MODE, symkey);
+    var c: Cipher = Cipher.getInstance("AES/ECB/PKCS5PADDING")
+    c.init(Cipher.DECRYPT_MODE, symkey)
     val decodedText = Base64.getDecoder().decode(text)
     var decryptedBytes: Array[Byte] = c.doFinal(decodedText)
     val decryptedString: String = new String(decryptedBytes)
     return decryptedString
+  }
+
+  //AES symmetric decryption for a byte array
+  def decryptSym(bytes: Array[Byte], symkey: SecretKey): Array[Byte] = {
+    var c: Cipher = Cipher.getInstance("AES/ECB/PKCS5PADDING")
+    c.init(Cipher.DECRYPT_MODE, symkey)
+    var decryptedBytes: Array[Byte] = c.doFinal(bytes)
+    return decryptedBytes
   }
 
   //Returns base64 encoded string of a symmetric key.
@@ -382,6 +390,35 @@ class UserActor extends Actor {
       println("keymap: " + keyMap.size)
       return keyMap
     }
+  }
+
+  //Generates a list of frends
+  def getShareWithArray(shareWith: String, creatorId: String): Vector[String] = {
+    var shareWithArray = Vector[String]()
+    if(shareWith.equals("public")) {
+      return shareWithArray
+    } else if(shareWith.equals("allFriends")) {
+      val userResponseAll = getUser(creatorId)
+      shareWithArray = userResponseAll.friends
+      shareWithArray = shareWithArray :+ creatorId
+      return shareWithArray
+    } else if(shareWith.equals("randomFriends")) {
+      val userResponse = getUser(creatorId)
+      var allFriends = userResponse.friends
+
+      //get a random number between 0 to allFriends.length
+      val rand = new Random(System.currentTimeMillis());
+      val randomNumber = rand.nextInt(allFriends.length)
+
+      //pick those many random friends, and add their ids to sharewith list
+      for(i <- 0 to randomNumber) {
+        var randomIndex = rand.nextInt(allFriends.length)
+        shareWithArray = shareWithArray :+ allFriends(randomIndex)
+      }
+      shareWithArray = shareWithArray :+ creatorId //add yourself to list of people authorized to view this post.
+      return shareWithArray
+    }
+    return shareWithArray
   }
 
 }

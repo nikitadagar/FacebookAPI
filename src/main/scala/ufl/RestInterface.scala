@@ -86,7 +86,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
             } else {
               //Valid user, create a new post.
               var newPostId = RestApi.getId
-              val postNode: PostNode = new PostNode(newPostId, resultUser.get.id, post.content, post.keyMap)
+              val postNode: PostNode = new PostNode(newPostId, resultUser.get.id, post.content, post.authUsers)
               RestApi.postList = RestApi.postList :+ postNode
               resultUser.get.postList = resultUser.get.postList :+ postNode.id
               println("Created new post by: " + resultUser.get.id + ", id: " + postNode.id + ", posts: " + resultUser.get.postList.length)
@@ -105,7 +105,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
             responder ! NodeNotFound("Post")
         } ~
         get{
-          parameter('requester) { requesterId =>
+          parameter('requesterId) { requesterId =>
           requestContext =>
           var resultPost: Option[PostNode] = RestApi.postList.find(_.id == id)
           val responder = createResponder(requestContext)
@@ -172,7 +172,8 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
               else {
                 var newPhotoId = RestApi.getId
                 var resultAlbum: Option[AlbumNode] = RestApi.albumList.find(_.id == photoAlbumId.get)
-                val photoNode: PhotoNode = new PhotoNode(newPhotoId, photo.caption, photo.albumId, photo.creatorId, photo.photo)
+                val photoNode: PhotoNode = new PhotoNode(newPhotoId, photo.caption, photo.albumId,
+                 photo.creatorId, photo.photo, photo.authUsers)
                 RestApi.photoList = RestApi.photoList :+ photoNode
                 resultAlbum.get.photos = resultAlbum.get.photos :+ photoNode.id
                 responder ! NodeCreated(newPhotoId)
@@ -192,11 +193,14 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
             responder ! PhotoDeleted
           }
         } ~
-        get { requestContext =>
+        get{
+          parameter('requesterId) { requesterId =>
+          requestContext =>
           var resultPhoto: Option[PhotoNode] = RestApi.photoList.find(_.id == id)
           val responder = createResponder(requestContext)
-          resultPhoto.map(responder ! _.photoResponse())
+          resultPhoto.map(responder ! _.photoResponse(requesterId))
             .getOrElse(responder ! NodeNotFound("Photo"))
+          }
         }
       }
     } ~
@@ -385,7 +389,7 @@ class Responder(requestContext:RequestContext) extends Actor with ActorLogging {
       killYourself
 
     case FriendExists =>
-      requestContext.complete(StatusCodes.Conflict, "Requested user is already a friend.")
+      requestContext.complete(StatusCodes.OK, "Requested user is already a friend.")
       killYourself
 
     case NodeNotFound(nodeType: String) =>
