@@ -215,7 +215,7 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
               responder ! NodeNotFound("User")
             } else {
               val albumNode: AlbumNode = new AlbumNode(newAlbumId, album.name, album.caption, 
-              album.creatorId, Calendar.getInstance().getTime().toString)
+                album.creatorId, Calendar.getInstance().getTime().toString, album.authUsers)
               RestApi.albumList = RestApi.albumList :+ albumNode
               resultUser.get.albumList = resultUser.get.albumList :+ newAlbumId
               responder ! NodeCreated(newAlbumId)
@@ -231,11 +231,14 @@ trait RestApi extends HttpService with ActorLogging { actor: Actor =>
           else
             responder ! NodeNotFound("User")
         } ~
-        get { requestContext =>
+        get{
+          parameter('requesterId) { requesterId =>
+          requestContext =>
           var resultAlbum: Option[AlbumNode] = RestApi.albumList.find(_.id == id)
           val responder = createResponder(requestContext)
           resultAlbum.map(responder ! _.albumResponse())
             .getOrElse(responder ! NodeNotFound("Album"))
+          }
         }
       }
     } ~

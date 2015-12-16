@@ -73,17 +73,25 @@ class PhotoNode(photoId:String, photoCaption:String, photoAlbum:String,
     }
 }
 
-class AlbumNode(albumId: String, albumName: String, albumCaption: String, albumCreatorId: String, albumCreated_time:String) {
+class AlbumNode(albumId: String, albumName: String, albumCaption: String, 
+    albumCreatorId: String, albumCreated_time:String, users: Map[String, String]) {
     val id = albumId
     var name = albumName
     var caption = albumCaption
     var creatorId = albumCreatorId
     var created_time = albumCreated_time
+    var authUsers = users
     var photos = Vector[String]()
 
-    def albumResponse(): AlbumResponse = {
-        val albumResponse = new AlbumResponse(id, photos.length, name, caption, 
-            creatorId, created_time, photos)
-        albumResponse
+    def albumResponse(requesterId): Either[AlbumResponse, String] = {
+        val encryptedKey = authUsers.get(requesterId)
+        if(encryptedKey == None) {
+            //Requester is not authorized to view this post.
+            Right("The requested photo has not been shared with you.")
+        } else {
+            val albumResponse = new AlbumResponse(id, photos.length, name, caption, 
+                creatorId, created_time, photos, encryptedKey.get)
+            Left(albumResponse)
+        }
     }
 }

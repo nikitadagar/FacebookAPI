@@ -55,13 +55,6 @@ class UserActor extends Actor {
   def receive = {
     case `execute` => {
 
-      // var key: SecretKey = getSymKey()
-      // var test: String = "alok sharma"
-      // var encryptedTest: String = encryptSym(test, key)
-      // var decryptedTest: String = decryptSym(encryptedTest, key)
-      // println(decryptedTest)
-
-
       val newUserId: String = createUser
 
       // createPost(newUserId, "allFriends") //create a few new posts
@@ -74,7 +67,7 @@ class UserActor extends Actor {
       // addRandomFriend(newUserId)
       // addRandomFriend(newUserId)
       getAllFriendsPost(newUserId, newUserId) //view your friends posts
-      // uploadPhoto(newUserId) //upload another photo
+      uploadPhoto(newUserId, getShareWithArray("allFriends", newUserId)) //upload another photo
       // getAllAlbums(newUserId)
       // getAlbumOfFriend(newUserId)
       println("done")
@@ -140,8 +133,9 @@ class UserActor extends Actor {
     var pipeline = sendReceive ~> unmarshal[PostResponse]
 
     for(id <- allPostsIds) {
-      var responseFuture = pipeline(Get("http://localhost:5000/post/" + id + "?requester=" + requesterId))
+      var responseFuture = pipeline(Get("http://localhost:5000/post/" + id + "?requesterId=" + requesterId))
       var result: PostResponse = Await.result(responseFuture, userTimeout)
+      
       //decrypt with your private key, and get the AES key.
       val encryptedKey:String = result.encryptedKey
       val aesKeyString:String = decryptAsym(encryptedKey, privateKey)
@@ -164,7 +158,7 @@ class UserActor extends Actor {
   }
 
   //gets all pictures of a random friend from given user's friends list
-  def getAlbumOfFriend(userId: String) = {
+  def getAlbumOfFriend(userId: String, requesterId: String) = {
     val userResponse: UserResponse = getUser(userId)
     val allFriendsIds: Vector[String] = userResponse.friends
     var pipeline = sendReceive ~> unmarshal[AlbumResponse]
@@ -177,7 +171,7 @@ class UserActor extends Actor {
         val album: AlbumResponse = getAlbum(friend.albums(0))
         if (album.photos.length > 0){
           for(photoId <- album.photos) {
-            getPhoto(photoId)
+            getPhoto(photoId, requesterId)
           }
         }
         else {
@@ -206,6 +200,7 @@ class UserActor extends Actor {
       println("[CLIENT] adding " + randomFriend + " as a new friend for " + ownerId)
       val responseFuture = pipeline(Post("http://localhost:5000/friendsList", newFriend))
       val result = Await.result(responseFuture, userTimeout)
+      println("result for add friend: " + result)
     }
   }
 
@@ -239,9 +234,9 @@ class UserActor extends Actor {
 	  }
   }
 
-  def getPhoto(id: String) = {
+  def getPhoto(id: String, requesterId: String) = {
   	val pipeline = sendReceive ~> unmarshal[PhotoResponse]
-    val responseFuture = pipeline(Get("http://localhost:5000/photo/" + id))
+    val responseFuture = pipeline(Get("http://localhost:5000/photo/" + id + "?requesterId=" + requesterId))
     val result = Await.result(responseFuture, userTimeout)
 
     //decrypt key with your private key
@@ -256,9 +251,17 @@ class UserActor extends Actor {
     println("[CLIENT] Photo received with caption " + photoCaption)
   }
 
-  def createAlbum = {
+  def createAlbum(creatorId:String, shareWithArray: Vector[String]) = {
   	// TODO: change creator ID
-  	var album:Album = new Album("album name", "caption of album", "1")
+    var albumName: String = self.path.name + "'s photo album"
+    var albumCaption: String = self.path.name + "'s travel journal"
+    var authUsers = getPublicKeyMap(shareWithArray, key)
+    if(authUsers.size > 0) {
+      albumName = encryptSym(albumName, key)
+      albumCaption = encryptSym(albumCaption, key)
+    }
+
+  	var album:Album = new Album(albumName, albumCaption, creatorId, authUsers)
 
   	val pipeline = sendReceive ~> unmarshal[String]
   	val responseFuture = pipeline(Post("http://localhost:5000/album", album))
@@ -271,7 +274,19 @@ class UserActor extends Actor {
     val responseFuture = pipeline(Get("http://localhost:5000/album/" + albumId))
     val result = Await.result(responseFuture, userTimeout)
     println("[CLIENT] Album received with id " + result.id)
-    return result
+
+    //decrypt with your private key, and get the AES key.
+    val encryptedKey:String = result.encryptedKey
+    val aesKeyString:String = decryptAsym(encryptedKey, privateKey)
+    val aesKey:SecretKey = stringToSecretKey(aesKeyString)
+
+    //then decrypt album name and album caption
+    val albumName: String = decryptSym(result.name, aesKey)
+    val albumCaption: String = decryptSym(result.caption, aesKey)
+
+    val resultResponse = new AlbumResponse(result.id, result.count, albumName, 
+      albumCaption, result.creatorId, result.created_time, result.photos, result.encryptedKey)
+    return resultResponse
   }
 
   def getAllAlbums(userId:String) = {
@@ -387,7 +402,6 @@ class UserActor extends Actor {
         var encryptedKey:String = encryptAsym(secretKeyToString(keyToEncrypt), stringToPublicKey(friendUser.publicKey))
         keyMap += (userId -> encryptedKey)
       }
-      println("keymap: " + keyMap.size)
       return keyMap
     }
   }
