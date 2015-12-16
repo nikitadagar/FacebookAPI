@@ -8,12 +8,14 @@ object FacebookAPI {
 
   case class NodeCreated(id: String)
   case class NodeNotFound(nodeType: String)
+  case class SignNumberRequest(number: String)
+  case object AuthFailed
 
   case class Page(name: String, about: String)
   case object PageDeleted
   case class PageResponse(id: String, name: String, about: String)
   
-  case class FBPost(userId: String, content: String, authUsers: Map[String, String])
+  case class FBPost(userId: String, content: String, authUsers: Map[String, String], auth:String)
   case object PostDeleted
   case class PostResponse(id: String, userId: String, content: String, encryptedKey: String)
 
@@ -40,7 +42,7 @@ object FacebookAPI {
   }
 
   object FBPost extends DefaultJsonProtocol {
-    implicit val format = jsonFormat3(FBPost.apply)
+    implicit val format = jsonFormat4(FBPost.apply)
   }
 
   object User extends DefaultJsonProtocol {

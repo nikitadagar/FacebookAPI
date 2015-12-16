@@ -57,19 +57,21 @@ class UserActor extends Actor {
 
       val newUserId: String = createUser
 
-      // createPost(newUserId, "allFriends") //create a few new posts
-      // createPost(newUserId)
       // getAllPosts(newUserId, newUserId) //view all your own posts
       // createAlbum //create a new album
       // uploadPhoto(newUserId) //upload a photo to the album
-      addRandomFriend(newUserId) //add a few friends
+      // addRandomFriend(newUserId) //add a few friends
       createPost(newUserId, getShareWithArray("allFriends", newUserId))
+      createPost(newUserId, getShareWithArray("allFriendswho", newUserId))
+      // addRandomFriend(newUserId) //add a few friends
+      // createPost(newUserId, "allFriends")
       // addRandomFriend(newUserId)
       // addRandomFriend(newUserId)
       getAllFriendsPost(newUserId, newUserId) //view your friends posts
-      uploadPhoto(newUserId, getShareWithArray("allFriends", newUserId)) //upload another photo
+      // uploadPhoto(newUserId, getShareWithArray("allFriends", newUserId)) //upload another photo
       // getAllAlbums(newUserId)
       // getAlbumOfFriend(newUserId)
+
       println("done")
 
       self ! PoisonPill      
@@ -119,11 +121,12 @@ class UserActor extends Actor {
     if(authUsers.size > 0) {
       postContent = encryptSym(postContent, key)
     }
-    var fbpost: FBPost = new FBPost(userId, postContent, authUsers)
+    var fbpost: FBPost = new FBPost(userId, postContent, authUsers, getSignedAuth(userId))
     val responseFuture = pipeline(Post("http://localhost:5000/post", fbpost))
     val result = Await.result(responseFuture, userTimeout)
 
     println("[CLIENT] creating new fbpost")
+    println(result)
   }
 
   def getAllPosts(userId: String, requesterId: String) = {
@@ -314,6 +317,14 @@ class UserActor extends Actor {
     encryptedString
   }
 
+  def encryptAsym(text: String, key: PrivateKey): String = {
+    val cipher = Cipher.getInstance("RSA") //can be RSA, DES, AES
+    cipher.init(Cipher.ENCRYPT_MODE, key)
+    val encryptedBytes: Array[Byte] = cipher.doFinal(text.getBytes())
+    val encryptedString: String = Base64.getEncoder().encodeToString(encryptedBytes)
+    encryptedString
+  }
+
   //Converts base64 encoded input to a byte array first, and then asymmetrically decrypts.
   def decryptAsym(text: String, key: PrivateKey): String = {
     val encryptedBytes: Array[Byte] = Base64.getDecoder().decode(text);
@@ -433,6 +444,19 @@ class UserActor extends Actor {
       return shareWithArray
     }
     return shareWithArray
+  }
+
+  def getSignNumber(userId:String) = {
+    val pipeline = sendReceive ~> unmarshal[String]
+    val responseFuture = pipeline(Get("http://localhost:5000/signNumber/" + userId))
+    val result = Await.result(responseFuture, userTimeout)
+    result
+  }
+
+  def getSignedAuth(userId:String) : String = {
+    var number: String = getSignNumber(userId)
+    var encrypNum = encryptAsym(number, privateKey)
+    encrypNum
   }
 
 }
